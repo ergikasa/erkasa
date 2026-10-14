@@ -1,0 +1,26 @@
+# Production. Every secret comes from server environment variables.
+
+spring:
+  jpa:
+    show-sql: false
+
+management:
+  endpoint:
+    health:
+      # Do not expose internal details publicly.
+      show-details: never
+
+erkasa:
+  storage:
+    # Cloudflare R2 endpoint, e.g. https://<account-id>.r2.cloudflarestorage.com
+    endpoint: ${S3_ENDPOINT}
+    region: ${S3_REGION:auto}
+
+logging:
+  structured:
+    format:
+      # One JSON line per log entry, easy to search in log tools.
+      console: ecs
+  level:
+    root: INFO
+    com.erkasa: INFO

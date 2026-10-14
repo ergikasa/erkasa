@@ -1,0 +1,21 @@
+# Local development (active by default).
+
+spring:
+  config:
+    # Read the same infra/.env that Docker Compose uses, so passwords live in one place.
+    # The first path works when you run from the backend/ folder, the second from the repo root.
+    import:
+      - optional:file:../infra/.env[.properties]
+      - optional:file:./infra/.env[.properties]
+
+  jpa:
+    show-sql: false
+
+management:
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.erkasa: DEBUG
