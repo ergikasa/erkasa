@@ -41,6 +41,11 @@ server:
   port: ${SERVER_PORT:8080}
   shutdown: graceful
 
+logging:
+  pattern:
+    # Adds the request ID next to the log level on every line: INFO [3f2a...] ...
+    level: "%5p [%X{requestId:-}]"
+
 management:
   endpoints:
     web:
@@ -50,7 +55,7 @@ management:
     health:
       show-components: always
 
-# Our own settings (used from sub-task 1.5 onward).
+# Our own settings.
 erkasa:
   storage:
     endpoint: ${S3_ENDPOINT:http://localhost:8333}
