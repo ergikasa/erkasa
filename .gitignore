@@ -1,0 +1,35 @@
+# ---------- Secrets (never commit) ----------
+.env
+.env.*
+!.env.example
+
+# ---------- IDE ----------
+.idea/
+*.iml
+.vscode/
+*.code-workspace
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- Java / Maven (backend) ----------
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# ---------- Node (frontend, render-worker) ----------
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------- Render output ----------
+render-worker/out/
+render-worker/tmp/
+
+# ---------- Logs ----------
+logs/
+*.log
