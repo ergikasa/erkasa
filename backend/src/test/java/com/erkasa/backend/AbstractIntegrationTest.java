@@ -27,7 +27,12 @@ import org.testcontainers.containers.wait.strategy.Wait;
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "management.endpoint.health.show-details=always")
+        properties = {
+                "management.endpoint.health.show-details=always",
+                // All tests come from 127.0.0.1 and register many users; limits would block them.
+                // RateLimitTests turns it back on (its @DynamicPropertySource wins over this).
+                "erkasa.rate-limit.enabled=false"
+        })
 public abstract class AbstractIntegrationTest {
 
     private static final String DB_NAME = "erkasa_test";

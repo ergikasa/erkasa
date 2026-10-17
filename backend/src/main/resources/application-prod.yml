@@ -24,6 +24,10 @@ management:
       show-details: never
 
 erkasa:
+  rate-limit:
+    # In production the backend sits behind a reverse proxy that sets X-Forwarded-For.
+    trust-proxy: true
+
   storage:
     # Cloudflare R2 endpoint, e.g. https://<account-id>.r2.cloudflarestorage.com
     endpoint: ${S3_ENDPOINT}

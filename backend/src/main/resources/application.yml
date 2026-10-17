@@ -85,6 +85,21 @@ erkasa:
     # OAuth Client ID from Google Cloud Console. Empty = Google login returns 503.
     client-id: ${GOOGLE_CLIENT_ID:}
 
+  rate-limit:
+    enabled: true
+    # Locally there is no proxy. In production (behind nginx/Cloudflare) this is true, see application-prod.yml.
+    trust-proxy: false
+    # Per IP address. Keep "login" first: RateLimitTests overrides rules[0].
+    rules:
+      - { name: login,               method: POST, path: /api/auth/login,               limit: 10, window: 5m }
+      - { name: register,            method: POST, path: /api/auth/register,            limit: 5,  window: 1h }
+      - { name: google,              method: POST, path: /api/auth/google,              limit: 20, window: 5m }
+      - { name: refresh,             method: POST, path: /api/auth/refresh,             limit: 60, window: 5m }
+      - { name: forgot-password,     method: POST, path: /api/auth/forgot-password,     limit: 5,  window: 1h }
+      - { name: reset-password,      method: POST, path: /api/auth/reset-password,      limit: 10, window: 1h }
+      - { name: verify-email,        method: POST, path: /api/auth/verify-email,        limit: 20, window: 1h }
+      - { name: resend-verification, method: POST, path: /api/auth/resend-verification, limit: 5,  window: 1h }
+
   cors:
     # Websites allowed to call the API from a browser. Comma-separated for several.
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
