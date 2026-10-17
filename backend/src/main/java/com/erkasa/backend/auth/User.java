@@ -36,6 +36,10 @@ public class User {
     @Column(nullable = false, length = 20)
     private Role role;
 
+    /** Google's permanent id for this person. NULL if the user never used "Sign in with Google". */
+    @Column(name = "google_sub", length = 255)
+    private String googleSub;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -56,6 +60,34 @@ public class User {
         user.emailVerified = false;
         user.role = Role.USER;
         return user;
+    }
+
+    /** A user who signed up with Google. No password; the email is verified by Google. */
+    public static User newGoogleUser(String email, String googleSub, String displayName) {
+        User user = new User();
+        user.id = UUID.randomUUID();
+        user.email = email;
+        user.passwordHash = null;
+        user.displayName = displayName;
+        user.emailVerified = true;
+        user.role = Role.USER;
+        user.googleSub = googleSub;
+        return user;
+    }
+
+    /**
+     * Connects Google to an existing account with the same email.
+     *
+     * If that email was never verified, the password is removed. Reason: anyone can register
+     * with someone else's email. Without this, a person who pre-registered "victim@gmail.com"
+     * with their own password could still log in after the real owner signs in with Google.
+     */
+    public void linkGoogle(String googleSub) {
+        if (!this.emailVerified) {
+            this.passwordHash = null;
+        }
+        this.googleSub = googleSub;
+        this.emailVerified = true;
     }
 
     @PrePersist
@@ -92,6 +124,10 @@ public class User {
 
     public Role getRole() {
         return role;
+    }
+
+    public String getGoogleSub() {
+        return googleSub;
     }
 
     public Instant getCreatedAt() {

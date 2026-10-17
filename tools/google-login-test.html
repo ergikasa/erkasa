@@ -1,0 +1,84 @@
+<!doctype html>
+<!--
+  Dev-only page to try "Sign in with Google" against the local backend before the real frontend exists.
+  Serve it from http://localhost:5173 (the origin registered in Google Cloud and allowed by CORS):
+
+      cd C:\dev\erkasa\tools
+      python -m http.server 5173
+
+  Then open http://localhost:5173/google-login-test.html
+-->
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>erkasa – Google login test</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; color: #1a1a1a; }
+        input { width: 100%; padding: 8px; font-family: monospace; box-sizing: border-box; }
+        button { padding: 8px 14px; margin-top: 8px; cursor: pointer; }
+        pre { background: #f4f4f4; padding: 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+        .step { margin: 24px 0; }
+    </style>
+</head>
+<body>
+<h1>erkasa – Google login test</h1>
+
+<div class="step">
+    <label for="clientId"><b>1.</b> Paste your Google Client ID (same as GOOGLE_CLIENT_ID in infra/.env):</label>
+    <input id="clientId" placeholder="123456789-abc....apps.googleusercontent.com">
+    <button id="show">Show Google button</button>
+</div>
+
+<div class="step">
+    <b>2.</b> Click the Google button:
+    <div id="googleButton" style="margin-top: 8px"></div>
+</div>
+
+<div class="step">
+    <b>3.</b> Backend response from <code>POST http://localhost:8080/api/auth/google</code>:
+    <pre id="result">(nothing yet)</pre>
+</div>
+
+<script>
+    const API = "http://localhost:8080";
+    const result = document.getElementById("result");
+    const clientIdInput = document.getElementById("clientId");
+
+    clientIdInput.value = localStorage.getItem("erkasa.googleClientId") || "";
+
+    document.getElementById("show").addEventListener("click", () => {
+        const clientId = clientIdInput.value.trim();
+        if (!clientId) { result.textContent = "Paste the Client ID first."; return; }
+        localStorage.setItem("erkasa.googleClientId", clientId);
+
+        google.accounts.id.initialize({ client_id: clientId, callback: onGoogleCredential });
+        google.accounts.id.renderButton(document.getElementById("googleButton"),
+            { theme: "outline", size: "large", text: "continue_with" });
+    });
+
+    // Google calls this with an ID token (a JWT signed by Google) after the user picks an account.
+    async function onGoogleCredential(response) {
+        result.textContent = "Sending the Google ID token to the backend...";
+        try {
+            const res = await fetch(API + "/api/auth/google", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ idToken: response.credential })
+            });
+            const body = await res.json();
+            result.textContent = "HTTP " + res.status + "\n\n" + JSON.stringify(body, null, 2);
+
+            if (res.ok) {
+                const me = await fetch(API + "/api/me", { headers: { Authorization: "Bearer " + body.accessToken } });
+                result.textContent += "\n\nGET /api/me with the new access token -> HTTP " + me.status + "\n"
+                    + JSON.stringify(await me.json(), null, 2);
+            }
+        } catch (e) {
+            result.textContent = "Request failed: " + e + "\nIs the backend running on port 8080?";
+        }
+    }
+</script>
+</body>
+</html>

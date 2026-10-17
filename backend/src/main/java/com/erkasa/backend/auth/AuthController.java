@@ -37,6 +37,12 @@ public class AuthController {
         return authService.login(request);
     }
 
+    /** Public. "Sign in with Google": signs up or logs in. Same response as /login. */
+    @PostMapping("/google")
+    public LoginResponse google(@Valid @RequestBody GoogleLoginRequest request) {
+        return authService.loginWithGoogle(request);
+    }
+
     /** Public. 200 with a NEW access + refresh token; the old refresh token stops working. */
     @PostMapping("/refresh")
     public LoginResponse refresh(@Valid @RequestBody RefreshRequest request) {

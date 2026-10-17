@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.erkasa.backend.common.error.ApiException;
 
-/** Business logic for accounts: registration, login, refresh and logout. Google login comes in 2.5. */
+/** Business logic for accounts: registration, password login, Google login, refresh and logout. */
 @Service
 public class AuthService {
 
@@ -24,6 +24,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokens;
+    private final GoogleTokenVerifier googleVerifier;
 
     /**
      * Hash of a random password, used when the email does not exist. We still run one
@@ -35,11 +36,13 @@ public class AuthService {
     public AuthService(UserRepository users,
                        PasswordEncoder passwordEncoder,
                        JwtService jwtService,
-                       RefreshTokenService refreshTokens) {
+                       RefreshTokenService refreshTokens,
+                       GoogleTokenVerifier googleVerifier) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokens = refreshTokens;
+        this.googleVerifier = googleVerifier;
         this.dummyHash = passwordEncoder.encode("timing-protection-" + System.nanoTime());
     }
 
@@ -87,6 +90,56 @@ public class AuthService {
         String refreshToken = refreshTokens.createForNewLogin(user.getId());
         log.info("User logged in: {}", user.getId());
         return tokenResponse(user, refreshToken);
+    }
+
+    /**
+     * "Sign in with Google". One button for both sign-up and login:
+     *
+     * 1. Known Google account (google_sub)  -> log in.
+     * 2. Same email as an existing account  -> link Google to it, log in.
+     * 3. Neither                            -> create a new account, log in.
+     */
+    @Transactional
+    public LoginResponse loginWithGoogle(GoogleLoginRequest request) {
+        GoogleIdentity google = googleVerifier.verify(request.idToken());
+
+        if (!google.emailVerified() || google.email() == null) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "GOOGLE_EMAIL_NOT_VERIFIED",
+                    "Your Google email is not verified");
+        }
+        String email = normalizeEmail(google.email());
+
+        User user = users.findByGoogleSub(google.sub())
+                .orElseGet(() -> linkOrCreateGoogleUser(google, email));
+
+        String refreshToken = refreshTokens.createForNewLogin(user.getId());
+        log.info("User logged in with Google: {}", user.getId());
+        return tokenResponse(user, refreshToken);
+    }
+
+    private User linkOrCreateGoogleUser(GoogleIdentity google, String email) {
+        Optional<User> existing = users.findByEmail(email);
+
+        if (existing.isPresent()) {
+            User user = existing.get();
+            if (user.getGoogleSub() != null) {
+                // This email is already linked to a DIFFERENT Google account.
+                throw new ApiException(HttpStatus.CONFLICT, "GOOGLE_ACCOUNT_CONFLICT",
+                        "This email is linked to another Google account");
+            }
+            user.linkGoogle(google.sub());
+            log.info("Linked Google to existing user {}", user.getId());
+            return users.saveAndFlush(user);
+        }
+
+        try {
+            User created = users.saveAndFlush(User.newGoogleUser(email, google.sub(), blankToNull(google.name())));
+            log.info("New user registered with Google: {}", created.getId());
+            return created;
+        } catch (DataIntegrityViolationException e) {
+            // Two sign-ins for the same new account at the same moment; the other one won.
+            throw new ApiException(HttpStatus.CONFLICT, "GOOGLE_SIGNIN_RETRY", "Please try again");
+        }
     }
 
     /**

@@ -89,6 +89,10 @@ public abstract class AbstractIntegrationTest {
         registry.add("erkasa.storage.secret-key", () -> S3_SECRET_KEY);
 
         registry.add("erkasa.jwt.secret", () -> TEST_JWT_SECRET);
+
+        // Tests never talk to the real Google, even if GOOGLE_CLIENT_ID is set in infra/.env.
+        // GoogleLoginTests replaces the verifier with a mock; everything else sees "not configured".
+        registry.add("erkasa.google.client-id", () -> "");
     }
 
     /** Fixed signing key for tests only (49 bytes, base64). Never used outside tests. */
