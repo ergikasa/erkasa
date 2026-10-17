@@ -2,6 +2,7 @@ package com.erkasa.backend.auth;
 
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.erkasa.backend.common.error.ApiException;
 
-/** Business logic for accounts: registration and login. Refresh, logout and Google come next. */
+/** Business logic for accounts: registration, login, refresh and logout. Google login comes in 2.5. */
 @Service
 public class AuthService {
 
@@ -83,12 +84,39 @@ public class AuthService {
         }
 
         User user = found.get();
-        String accessToken = jwtService.createAccessToken(user);
         String refreshToken = refreshTokens.createForNewLogin(user.getId());
         log.info("User logged in: {}", user.getId());
+        return tokenResponse(user, refreshToken);
+    }
 
+    /**
+     * New access token + new refresh token in exchange for a valid refresh token.
+     *
+     * Deliberately NOT @Transactional: rotate() must be able to save the "session ended"
+     * revocation even though it then throws. An outer transaction here would roll that back.
+     */
+    public LoginResponse refresh(RefreshRequest request) {
+        RefreshTokenService.Rotation rotation = refreshTokens.rotate(request.refreshToken());
+        User user = users.findById(rotation.userId())
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN",
+                        "Session expired. Please log in again"));
+        return tokenResponse(user, rotation.newRefreshToken());
+    }
+
+    /** Logout on this device. Always succeeds, even for unknown tokens. */
+    public void logout(RefreshRequest request) {
+        refreshTokens.revokeSession(request.refreshToken());
+    }
+
+    /** Logout on every device. */
+    public void logoutEverywhere(UUID userId) {
+        int revoked = refreshTokens.revokeAllForUser(userId);
+        log.info("User {} logged out everywhere ({} sessions ended)", userId, revoked);
+    }
+
+    private LoginResponse tokenResponse(User user, String refreshToken) {
         return new LoginResponse(
-                accessToken,
+                jwtService.createAccessToken(user),
                 "Bearer",
                 jwtService.accessTokenTtlSeconds(),
                 refreshToken,

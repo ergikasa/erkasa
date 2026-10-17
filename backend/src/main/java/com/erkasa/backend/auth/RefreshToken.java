@@ -56,6 +56,20 @@ public class RefreshToken {
         createdAt = Instant.now();
     }
 
+    public boolean isRevoked() {
+        return revokedAt != null;
+    }
+
+    public boolean isExpired(Instant now) {
+        return !expiresAt.isAfter(now);
+    }
+
+    /** Used once: mark it as spent and remember which token replaced it. */
+    public void markReplacedBy(UUID newTokenId, Instant now) {
+        this.revokedAt = now;
+        this.replacedBy = newTokenId;
+    }
+
     public UUID getId() {
         return id;
     }
