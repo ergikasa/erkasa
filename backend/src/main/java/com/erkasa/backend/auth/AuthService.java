@@ -25,6 +25,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokens;
     private final GoogleTokenVerifier googleVerifier;
+    private final AccountService accountService;
 
     /**
      * Hash of a random password, used when the email does not exist. We still run one
@@ -37,12 +38,14 @@ public class AuthService {
                        PasswordEncoder passwordEncoder,
                        JwtService jwtService,
                        RefreshTokenService refreshTokens,
-                       GoogleTokenVerifier googleVerifier) {
+                       GoogleTokenVerifier googleVerifier,
+                       AccountService accountService) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokens = refreshTokens;
         this.googleVerifier = googleVerifier;
+        this.accountService = accountService;
         this.dummyHash = passwordEncoder.encode("timing-protection-" + System.nanoTime());
     }
 
@@ -57,15 +60,19 @@ public class AuthService {
         String displayName = blankToNull(request.displayName());
         User user = User.newLocalUser(email, passwordEncoder.encode(request.password()), displayName);
 
+        User saved;
         try {
             // saveAndFlush sends the INSERT now, so a duplicate created at the same moment
             // by another request fails here (unique index) instead of after we return.
-            User saved = users.saveAndFlush(user);
-            log.info("New user registered: {}", saved.getId());
-            return saved;
+            saved = users.saveAndFlush(user);
         } catch (DataIntegrityViolationException e) {
             throw emailTaken();
         }
+        log.info("New user registered: {}", saved.getId());
+
+        // Sent after this transaction commits (see EmailDispatcher).
+        accountService.sendVerificationEmail(saved);
+        return saved;
     }
 
     /**

@@ -90,6 +90,16 @@ public class User {
         this.emailVerified = true;
     }
 
+    /** The user proved they can read emails sent to this address. */
+    public void markEmailVerified() {
+        this.emailVerified = true;
+    }
+
+    /** Stores a new BCrypt hash (never the password itself). */
+    public void changePassword(String newPasswordHash) {
+        this.passwordHash = newPasswordHash;
+    }
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();

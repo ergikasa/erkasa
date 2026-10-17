@@ -9,8 +9,11 @@ import java.time.Duration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.Environment;
+
+import com.erkasa.backend.common.mail.EmailSender;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
@@ -121,6 +124,13 @@ public abstract class AbstractIntegrationTest {
         throw new IllegalStateException("SeaweedFS S3 gateway did not start within 2 minutes. Logs:\n"
                 + STORAGE.getLogs());
     }
+
+    /**
+     * No real emails in tests. Every test class shares this mock; tests that care about emails
+     * capture what was "sent" and read the links. Mockito resets it after each test.
+     */
+    @MockitoBean
+    protected EmailSender emailSender;
 
     // ---------- HTTP helpers for subclasses ----------
 

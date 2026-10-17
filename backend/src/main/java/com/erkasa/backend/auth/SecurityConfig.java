@@ -26,7 +26,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 /**
  * Who may call what.
  *
- * - Public: register, login, Google login, refresh, logout, health check.
+ * - Public: register, login, Google login, refresh, logout, verify email, forgot/reset password, health.
  * - Everything else needs "Authorization: Bearer <accessToken>" from /api/auth/login.
  * - Stateless: no server session and no cookies, so no CSRF token is needed.
  * - Errors (401/403) use the same JSON format as the rest of the API.
@@ -42,7 +42,10 @@ public class SecurityConfig {
             "/api/auth/login",
             "/api/auth/google",
             "/api/auth/refresh",
-            "/api/auth/logout"
+            "/api/auth/logout",
+            "/api/auth/verify-email",
+            "/api/auth/forgot-password",
+            "/api/auth/reset-password"
     };
 
     private static final String[] PUBLIC_ANY = {

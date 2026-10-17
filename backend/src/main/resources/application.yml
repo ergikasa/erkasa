@@ -37,6 +37,12 @@ spring:
     username: ${RABBITMQ_USER}
     password: ${RABBITMQ_PASSWORD}
 
+  mail:
+    # Locally: Mailpit from docker compose (catches all mail, UI at http://localhost:8025).
+    # Production: a real SMTP provider; username/password are set in application-prod.yml.
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+
 server:
   port: ${SERVER_PORT:8080}
   shutdown: graceful
@@ -54,9 +60,20 @@ management:
   endpoint:
     health:
       show-components: always
+  health:
+    mail:
+      # A slow or down mail server must not mark the whole app as DOWN; email is sent in the background.
+      enabled: false
 
 # Our own settings.
 erkasa:
+  app:
+    # Where the React app lives. Links in emails point here (e.g. /verify-email?token=...).
+    frontend-url: ${FRONTEND_URL:http://localhost:5173}
+
+  mail:
+    from: ${MAIL_FROM:erkasa <no-reply@erkasa.local>}
+
   jwt:
     # Base64, at least 32 bytes. Locally from infra/.env, in production from the server.
     secret: ${JWT_SECRET}

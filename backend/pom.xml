@@ -42,6 +42,12 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- Sends email over SMTP (Mailpit locally, a real provider in production) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- Reads "Authorization: Bearer <JWT>" and checks the token on every request -->
         <dependency>
             <groupId>org.springframework.security</groupId>

@@ -64,6 +64,21 @@ services:
       retries: 12
       start_period: 15s
 
+  # Fake mail server for local development. Catches every email the backend sends;
+  # nothing leaves your computer. Read them at http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: erkasa-mailpit
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"   # SMTP (the backend sends here)
+      - "${MAILPIT_UI_PORT:-8025}:8025"     # web inbox
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   postgres-data:
   rabbitmq-data:
