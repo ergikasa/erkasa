@@ -6,6 +6,9 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.UUID;
 
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -80,6 +83,11 @@ public class JwtService {
         } catch (ParseException | JOSEException e) {
             throw invalidToken();
         }
+    }
+
+    /** The same key as a Java SecretKey, for Spring Security's JwtDecoder (see SecurityConfig). */
+    public SecretKey signingKey() {
+        return new SecretKeySpec(secret, "HmacSHA256");
     }
 
     public long accessTokenTtlSeconds() {

@@ -36,6 +36,17 @@
             <artifactId>s3</artifactId>
             <version>2.31.0</version>
         </dependency>
+        <!-- Spring Security: protects endpoints -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- Reads "Authorization: Bearer <JWT>" and checks the token on every request -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-resource-server</artifactId>
+        </dependency>
 
         <!-- BCrypt for password hashing (full Spring Security comes in 2.3) -->
         <dependency>

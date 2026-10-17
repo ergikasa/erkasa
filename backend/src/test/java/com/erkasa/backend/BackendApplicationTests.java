@@ -56,12 +56,13 @@ class BackendApplicationTests extends AbstractIntegrationTest {
         assertThat(response.headers().firstValue("X-Request-Id")).isPresent();
     }
 
+    /** Since 2.3, security runs first: without a token even an unknown URL is 401 (the 404 case is in SecurityTests). */
     @Test
-    void unknownUrlReturnsOurErrorFormat() throws Exception {
+    void unknownUrlWithoutTokenReturnsOurErrorFormat() throws Exception {
         HttpResponse<String> response = get("/api/does-not-exist");
 
-        assertThat(response.statusCode()).isEqualTo(404);
-        assertThat(response.body()).contains("\"code\":\"NOT_FOUND\"", "\"requestId\"", "\"status\":404");
+        assertThat(response.statusCode()).isEqualTo(401);
+        assertThat(response.body()).contains("\"code\":\"UNAUTHORIZED\"", "\"requestId\"", "\"status\":401");
     }
 
     @Test
