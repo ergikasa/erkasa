@@ -57,6 +57,13 @@ management:
 
 # Our own settings.
 erkasa:
+  jwt:
+    # Base64, at least 32 bytes. Locally from infra/.env, in production from the server.
+    secret: ${JWT_SECRET}
+    issuer: erkasa
+    access-token-ttl: 15m
+    refresh-token-ttl: 30d
+
   storage:
     endpoint: ${S3_ENDPOINT:http://localhost:8333}
     region: ${S3_REGION:us-east-1}

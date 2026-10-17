@@ -1,6 +1,7 @@
 package com.erkasa.backend.auth;
 
 import java.util.Locale;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.erkasa.backend.common.error.ApiException;
 
-/** Business logic for accounts. Login, tokens and Google come in the next sub-tasks. */
+/** Business logic for accounts: registration and login. Refresh, logout and Google come next. */
 @Service
 public class AuthService {
 
@@ -20,10 +21,25 @@ public class AuthService {
 
     private final UserRepository users;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final RefreshTokenService refreshTokens;
 
-    public AuthService(UserRepository users, PasswordEncoder passwordEncoder) {
+    /**
+     * Hash of a random password, used when the email does not exist. We still run one
+     * BCrypt check so "unknown email" takes as long as "wrong password"; otherwise an
+     * attacker could find out which emails have accounts by timing the response.
+     */
+    private final String dummyHash;
+
+    public AuthService(UserRepository users,
+                       PasswordEncoder passwordEncoder,
+                       JwtService jwtService,
+                       RefreshTokenService refreshTokens) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
+        this.refreshTokens = refreshTokens;
+        this.dummyHash = passwordEncoder.encode("timing-protection-" + System.nanoTime());
     }
 
     @Transactional
@@ -46,6 +62,38 @@ public class AuthService {
         } catch (DataIntegrityViolationException e) {
             throw emailTaken();
         }
+    }
+
+    /**
+     * Checks email + password and returns an access token and a refresh token.
+     * Wrong email and wrong password give the same error on purpose.
+     */
+    @Transactional
+    public LoginResponse login(LoginRequest request) {
+        Optional<User> found = users.findByEmail(normalizeEmail(request.email()));
+
+        // Google-only users have no password hash; they must use "Sign in with Google".
+        String hash = found.map(User::getPasswordHash).orElse(null);
+        boolean passwordOk = passwordEncoder.matches(request.password(), hash != null ? hash : dummyHash);
+
+        if (found.isEmpty() || hash == null || !passwordOk) {
+            log.info("Failed login attempt");
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS",
+                    "Email or password is incorrect");
+        }
+
+        User user = found.get();
+        String accessToken = jwtService.createAccessToken(user);
+        String refreshToken = refreshTokens.createForNewLogin(user.getId());
+        log.info("User logged in: {}", user.getId());
+
+        return new LoginResponse(
+                accessToken,
+                "Bearer",
+                jwtService.accessTokenTtlSeconds(),
+                refreshToken,
+                refreshTokens.refreshTokenTtlSeconds(),
+                UserResponse.from(user));
     }
 
     /** "  Ergi@Example.COM " and "ergi@example.com" are the same account. */

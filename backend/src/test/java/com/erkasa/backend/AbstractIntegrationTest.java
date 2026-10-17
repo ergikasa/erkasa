@@ -87,7 +87,13 @@ public abstract class AbstractIntegrationTest {
         registry.add("erkasa.storage.bucket", () -> S3_BUCKET);
         registry.add("erkasa.storage.access-key", () -> S3_ACCESS_KEY);
         registry.add("erkasa.storage.secret-key", () -> S3_SECRET_KEY);
+
+        registry.add("erkasa.jwt.secret", () -> TEST_JWT_SECRET);
     }
+
+    /** Fixed signing key for tests only (49 bytes, base64). Never used outside tests. */
+    private static final String TEST_JWT_SECRET =
+            "ZXJrYXNhLXRlc3Qtc2VjcmV0LWVya2FzYS10ZXN0LXNlY3JldC1lcmthc2EtdGVzdA==";
 
     /** The S3 gateway (port 8333) comes up a few seconds after the master; wait until it answers. */
     private static void waitForS3Gateway() {

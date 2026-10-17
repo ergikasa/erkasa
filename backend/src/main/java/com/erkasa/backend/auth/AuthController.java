@@ -26,4 +26,10 @@ public class AuthController {
     public UserResponse register(@Valid @RequestBody RegisterRequest request) {
         return UserResponse.from(authService.register(request));
     }
+
+    /** 200 with access + refresh token, 401 INVALID_CREDENTIALS if email or password is wrong. */
+    @PostMapping("/login")
+    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
+        return authService.login(request);
+    }
 }
