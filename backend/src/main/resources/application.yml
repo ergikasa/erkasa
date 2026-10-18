@@ -87,7 +87,7 @@ erkasa:
 
   providers:
     # Which AI implementation to use. "mock" = free, offline, fake output (no API key needed).
-    # Real ones come in 3.2-3.4: llm=anthropic, image=fal, tts=elevenlabs-azure
+    # Real ones: llm=anthropic (3.2), image=fal or clipdrop (3.3), tts=elevenlabs-azure (3.4)
     llm: ${PROVIDER_LLM:mock}
     image: ${PROVIDER_IMAGE:mock}
     tts: ${PROVIDER_TTS:mock}
@@ -103,6 +103,25 @@ erkasa:
       input-usd-per-million: 2.00
       output-usd-per-million: 10.00
       timeout: 120s
+    fal:
+      api-key: ${FAL_KEY:}
+      # Any fal text-to-image endpoint that takes prompt + aspect_ratio.
+      model: ${FAL_MODEL:fal-ai/nano-banana-2}
+      base-url: https://fal.run
+      resolution: 1K
+      output-format: png
+      safety-tolerance: "4"
+      # USD per image for the model + resolution above: https://fal.ai/models/fal-ai/nano-banana-2
+      usd-per-image: 0.08
+      timeout: 120s
+    clipdrop:
+      api-key: ${CLIPDROP_API_KEY:}
+      base-url: https://clipdrop-api.co
+      # true: 9:16 / 16:9 images via a second "uncrop" call (2 credits). false: square only (1 credit).
+      uncrop: true
+      # USD per credit. 0 while you use the free credits; set it when you buy credits.
+      usd-per-credit: 0.00
+      timeout: 90s
 
   rate-limit:
     enabled: true
