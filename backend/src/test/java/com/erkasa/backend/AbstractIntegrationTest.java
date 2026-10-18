@@ -101,6 +101,12 @@ public abstract class AbstractIntegrationTest {
         // Tests never talk to the real Google, even if GOOGLE_CLIENT_ID is set in infra/.env.
         // GoogleLoginTests replaces the verifier with a mock; everything else sees "not configured".
         registry.add("erkasa.google.client-id", () -> "");
+
+        // Tests never call paid AI providers, even if infra/.env says PROVIDER_LLM=anthropic.
+        // Real providers have their own unit tests against a fake server (no key, no cost).
+        registry.add("erkasa.providers.llm", () -> "mock");
+        registry.add("erkasa.providers.image", () -> "mock");
+        registry.add("erkasa.providers.tts", () -> "mock");
     }
 
     /** Fixed signing key for tests only (49 bytes, base64). Never used outside tests. */

@@ -85,6 +85,25 @@ erkasa:
     # OAuth Client ID from Google Cloud Console. Empty = Google login returns 503.
     client-id: ${GOOGLE_CLIENT_ID:}
 
+  providers:
+    # Which AI implementation to use. "mock" = free, offline, fake output (no API key needed).
+    # Real ones come in 3.2-3.4: llm=anthropic, image=fal, tts=elevenlabs-azure
+    llm: ${PROVIDER_LLM:mock}
+    image: ${PROVIDER_IMAGE:mock}
+    tts: ${PROVIDER_TTS:mock}
+    retry:
+      max-attempts: 3
+      initial-delay: 1s
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:}
+      model: ${ANTHROPIC_MODEL:claude-sonnet-5-5}
+      base-url: https://api.anthropic.com
+      # USD per 1 million tokens for the model above. Check when you change model:
+      # https://platform.claude.com/docs/en/about-claude/pricing
+      input-usd-per-million: 2.00
+      output-usd-per-million: 10.00
+      timeout: 120s
+
   rate-limit:
     enabled: true
     # Locally there is no proxy. In production (behind nginx/Cloudflare) this is true, see application-prod.yml.
