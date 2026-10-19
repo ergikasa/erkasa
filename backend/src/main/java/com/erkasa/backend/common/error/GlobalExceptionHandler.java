@@ -19,6 +19,8 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import com.erkasa.backend.common.web.RequestIdFilter;
+import com.erkasa.backend.features.promptvideo.project.InvalidScriptException;
+import com.erkasa.backend.jobs.InvalidTransitionException;
 import com.erkasa.backend.providers.ProviderException;
 
 /**
@@ -84,6 +86,26 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         body.setProperty("providerCode", ex.getCode());
         body.setProperty("retryable", ex.isRetryable());
         return createResponseEntity(body, new HttpHeaders(), HttpStatus.BAD_GATEWAY, request);
+    }
+
+    /** A status change that is not allowed now, e.g. approving a script twice. 409 Conflict. */
+    @ExceptionHandler(InvalidTransitionException.class)
+    public ResponseEntity<Object> handleInvalidTransition(InvalidTransitionException ex, WebRequest request) {
+        ProblemDetail body = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "This action is not possible while the project is " + ex.getFrom() + ".");
+        body.setProperty("code", "INVALID_STATE");
+        body.setProperty("currentStatus", ex.getFrom());
+        return createResponseEntity(body, new HttpHeaders(), HttpStatus.CONFLICT, request);
+    }
+
+    /** An edited script breaks the rules. 422 with the list of problems for the UI to show. */
+    @ExceptionHandler(InvalidScriptException.class)
+    public ResponseEntity<Object> handleInvalidScript(InvalidScriptException ex, WebRequest request) {
+        ProblemDetail body = ProblemDetail.forStatusAndDetail(HttpStatus.valueOf(422),
+                "The script is not valid");
+        body.setProperty("code", "INVALID_SCRIPT");
+        body.setProperty("problems", ex.getProblems());
+        return createResponseEntity(body, new HttpHeaders(), HttpStatus.valueOf(422), request);
     }
 
     /** Anything unexpected: log the full error, but never show internal details to the client. */

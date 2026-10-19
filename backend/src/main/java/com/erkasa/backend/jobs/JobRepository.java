@@ -18,6 +18,8 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
     /** Is a job of this kind already queued or running? Used to refuse double starts. */
     boolean existsByProjectIdAndKindAndStatusIn(UUID projectId, JobKind kind, Collection<JobStatus> statuses);
 
+    long countByProjectIdAndKind(UUID projectId, JobKind kind);
+
     /** Jobs left QUEUED or RUNNING, e.g. after a restart (picked up again in 4.4). */
     List<Job> findByStatusInOrderByCreatedAtAsc(Collection<JobStatus> statuses);
 }
