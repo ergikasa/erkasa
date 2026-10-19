@@ -122,6 +122,22 @@ erkasa:
       # USD per credit. 0 while you use the free credits; set it when you buy credits.
       usd-per-credit: 0.00
       timeout: 90s
+    # tts=elevenlabs-azure: which language uses which voice is in the tts_voices table (V7).
+    elevenlabs:
+      api-key: ${ELEVENLABS_API_KEY:}
+      # eleven_v4 = best quality, 90+ languages. Alternative: eleven_multilingual_v2
+      model: ${ELEVENLABS_MODEL:eleven_v4}
+      base-url: https://api.elevenlabs.io
+      output-format: mp3_44100_128
+      # USD per 1,000 characters on your plan: https://elevenlabs.io/pricing/api
+      usd-per-thousand-chars: 0.10
+      timeout: 120s
+    azure-speech:
+      key: ${AZURE_SPEECH_KEY:}
+      region: ${AZURE_SPEECH_REGION:westeurope}
+      # Neural voices, USD per 1,000 characters: https://azure.microsoft.com/pricing/details/cognitive-services/speech-services/
+      usd-per-thousand-chars: 0.015
+      timeout: 120s
 
   rate-limit:
     enabled: true

@@ -17,10 +17,29 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record ProvidersProperties(String llm, String image, String tts, RetrySettings retry) {
 
     public ProvidersProperties {
-        llm = llm == null ? "mock" : llm;
-        image = image == null ? "mock" : image;
-        tts = tts == null ? "mock" : tts;
+        llm = check("llm", "PROVIDER_LLM", llm, "mock", "anthropic");
+        image = check("image", "PROVIDER_IMAGE", image, "mock", "fal", "clipdrop");
+        tts = check("tts", "PROVIDER_TTS", tts, "mock", "elevenlabs-azure");
         retry = retry == null ? new RetrySettings(3, Duration.ofSeconds(1)) : retry;
+    }
+
+    /**
+     * Stops the app at startup with a clear message when a value is misspelled, e.g.
+     * "PROVIDER_TTS=elevenlabs" or "PROVIDER_TTS=elevenlabs-azure # comment" in infra/.env.
+     * (In .env, a trailing space or a comment after the value becomes part of the value.)
+     */
+    private static String check(String name, String envVar, String value, String... allowed) {
+        if (value == null || value.isBlank()) {
+            return "mock";
+        }
+        for (String a : allowed) {
+            if (a.equals(value)) {
+                return value;
+            }
+        }
+        throw new IllegalArgumentException("erkasa.providers." + name + " = '" + value + "' is not valid. "
+                + "Set " + envVar + " in infra/.env to exactly one of " + String.join(", ", allowed)
+                + " (no spaces, no comment on the same line).");
     }
 
     /**

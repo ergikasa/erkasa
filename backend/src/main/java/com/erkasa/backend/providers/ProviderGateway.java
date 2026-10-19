@@ -41,11 +41,13 @@ public class ProviderGateway {
     private final ProviderUsageRecorder recorder;
     private final ProvidersProperties.RetrySettings retry;
 
-    public ProviderGateway(LlmProvider llm,
+    // props comes first on purpose: Spring resolves parameters in order, so a misspelled
+    // PROVIDER_* value is reported clearly before "no TtsProvider bean" can happen.
+    public ProviderGateway(ProvidersProperties props,
+                           LlmProvider llm,
                            ImageProvider image,
                            TtsProvider tts,
-                           ProviderUsageRecorder recorder,
-                           ProvidersProperties props) {
+                           ProviderUsageRecorder recorder) {
         this.llm = llm;
         this.image = image;
         this.tts = tts;
