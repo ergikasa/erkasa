@@ -19,6 +19,7 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import com.erkasa.backend.common.web.RequestIdFilter;
+import com.erkasa.backend.providers.ProviderException;
 
 /**
  * Turns every error into the same JSON shape (RFC 9457 "Problem Details"):
@@ -66,6 +67,23 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         body.setProperty("code", "VALIDATION_FAILED");
         body.setProperty("errors", errors);
         return createResponseEntity(body, headers, status, request);
+    }
+
+    /**
+     * An AI provider failed (after retries). 502 = "a service we depend on failed", not our bug.
+     * The client sees which provider and why (e.g. fal / NO_IMAGE); the provider's raw answer
+     * stays in the log only.
+     */
+    @ExceptionHandler(ProviderException.class)
+    public ResponseEntity<Object> handleProviderException(ProviderException ex, WebRequest request) {
+        log.warn("Provider failed: {}", ex.getMessage());
+        ProblemDetail body = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY,
+                "The " + ex.getProvider() + " service failed (" + ex.getCode() + ").");
+        body.setProperty("code", "PROVIDER_FAILED");
+        body.setProperty("provider", ex.getProvider());
+        body.setProperty("providerCode", ex.getCode());
+        body.setProperty("retryable", ex.isRetryable());
+        return createResponseEntity(body, new HttpHeaders(), HttpStatus.BAD_GATEWAY, request);
     }
 
     /** Anything unexpected: log the full error, but never show internal details to the client. */

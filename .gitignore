@@ -33,3 +33,6 @@ render-worker/tmp/
 # ---------- Logs ----------
 logs/
 *.log
+
+# ---------- Dev smoke runs (3.5) ----------
+backend/smoke-output/
