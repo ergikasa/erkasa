@@ -46,6 +46,8 @@ import jakarta.validation.constraints.Size;
  *   POST /api/projects/{id}/regenerate-script   write a new script (at most 5 per project)
  *   POST /api/projects/{id}/approve             accept the script: images + voices start -> ASSETS_PENDING
  *   POST /api/projects/{id}/cancel              stop the project for good
+ *   POST /api/projects/{id}/retry               FAILED -> redo only what failed
+ *   POST /api/projects/{id}/scenes/{n}/redo     redo scene n's image and/or voice (ASSETS_READY)
  *   GET  /api/projects/{id}/assets              every scene's image and voice (progress + links)
  *   GET  /api/projects/{id}/assets/{n}/image    the image file of scene n (0, 1, 2...)
  *   GET  /api/projects/{id}/assets/{n}/voice    the voice file of scene n
@@ -111,6 +113,34 @@ public class ProjectController {
     @PostMapping("/{id}/cancel")
     public ProjectResponse cancel(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
         return full(service.cancel(userId(jwt), id));
+    }
+
+    /** "Try again" on a FAILED project: redoes only what failed. */
+    @PostMapping("/{id}/retry")
+    public ResponseEntity<ProjectResponse> retry(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(full(service.retry(userId(jwt), id)));
+    }
+
+    /**
+     * What to redo for one scene. image / voice: redo as it is. imagePrompt / narration: change
+     * the scene first (implies redoing that part).
+     *
+     * Boolean (not boolean): Jackson 3 refuses a missing field for a primitive, and {"image":true}
+     * without "voice" must be valid. null means false.
+     */
+    public record RedoRequest(Boolean image, Boolean voice,
+                              @Size(max = 2000) String imagePrompt,
+                              @Size(max = 1000) String narration) {
+    }
+
+    /** Redo one scene's image and/or voice after ASSETS_READY; the other scenes are kept. */
+    @PostMapping("/{id}/scenes/{scene}/redo")
+    public ResponseEntity<ProjectResponse> redo(@PathVariable UUID id, @PathVariable int scene,
+                                                @Valid @RequestBody RedoRequest body, @AuthenticationPrincipal Jwt jwt) {
+        Project project = service.redoScene(userId(jwt), id, scene,
+                Boolean.TRUE.equals(body.image()), Boolean.TRUE.equals(body.voice()),
+                body.imagePrompt(), body.narration());
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(full(project));
     }
 
     /** Every scene's image and voice: status, download link, size / duration / word timings. */

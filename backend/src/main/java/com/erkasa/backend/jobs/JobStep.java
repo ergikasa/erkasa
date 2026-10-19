@@ -97,6 +97,23 @@ public class JobStep {
         return create(jobId, type, sceneIndex);
     }
 
+    /**
+     * Carries a finished step over to a new job without doing (or paying for) the work again.
+     * Used when the user redoes one scene: the new job gets fresh steps for that scene and
+     * reused ones for every other scene, so the latest job always has the full set of files.
+     */
+    public static JobStep reuse(UUID newJobId, JobStep previous) {
+        if (previous.status != StepStatus.SUCCEEDED) {
+            throw new IllegalArgumentException("Only a SUCCEEDED step can be reused, not " + previous.status);
+        }
+        JobStep step = create(newJobId, previous.type, previous.sceneIndex);
+        step.status = StepStatus.SUCCEEDED;
+        step.outputKey = previous.outputKey;
+        step.outputMeta = previous.outputMeta;
+        step.finishedAt = Instant.now();
+        return step;
+    }
+
     private static JobStep create(UUID jobId, StepType type, int sceneIndex) {
         JobStep step = new JobStep();
         step.id = UUID.randomUUID();

@@ -18,6 +18,8 @@ import com.erkasa.backend.jobs.InvalidTransitionException;
 import com.erkasa.backend.jobs.Job;
 import com.erkasa.backend.jobs.JobKind;
 import com.erkasa.backend.jobs.JobRepository;
+import com.erkasa.backend.jobs.JobStatus;
+import com.erkasa.backend.jobs.StepStatus;
 import com.erkasa.backend.jobs.JobStep;
 import com.erkasa.backend.jobs.JobStepRepository;
 import com.erkasa.backend.jobs.Project;
@@ -46,6 +48,12 @@ public class ProjectService {
 
     /** A user can ask for a new script this many times per project: each one costs us an LLM call. */
     static final int MAX_SCRIPT_JOBS = 5;
+
+    /** "Try again" stops after a step has failed this many times: something is wrong with that scene. */
+    static final int MAX_STEP_ATTEMPTS = 3;
+
+    /** The first assets job + up to 9 scene redos per project. */
+    static final int MAX_ASSETS_JOBS = 10;
 
     private final ProjectRepository projects;
     private final JobRepository jobs;
@@ -204,6 +212,112 @@ public class ProjectService {
     }
 
     public record Asset(byte[] data, String contentType) {
+    }
+
+    /**
+     * "Try again" on a FAILED project. Restarts only the stage that failed:
+     * - script failed -> a new SCRIPT job (counts toward the 5-script limit)
+     * - assets failed -> the SAME assets job again, but only its FAILED steps; scenes that
+     *   already succeeded are kept and never paid for twice
+     */
+    public Project retry(UUID userId, UUID projectId) {
+        Created restarted = tx.execute(status -> {
+            Project project = lockOwned(userId, projectId);
+            if (project.getStatus() != ProjectStatus.FAILED) {
+                throw new InvalidTransitionException("project " + projectId, project.getStatus(), ProjectStatus.FAILED);
+            }
+            List<Job> history = jobs.findByProjectIdOrderByCreatedAtAsc(projectId);
+            Job last = history.get(history.size() - 1);
+            if (last.getKind() != JobKind.ASSETS) {
+                return null; // the script stage failed: handled by regenerateScript below
+            }
+            List<JobStep> failed = steps.findByJobIdAndStatusInOrderByTypeAscSceneIndexAsc(
+                    last.getId(), List.of(StepStatus.FAILED));
+            for (JobStep step : failed) {
+                if (step.getAttempts() >= MAX_STEP_ATTEMPTS) {
+                    throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "TOO_MANY_RETRIES",
+                            step.getType() + " of scene " + (step.getSceneIndex() + 1) + " failed "
+                                    + step.getAttempts() + " times. Change that scene and redo it, or start a new project.");
+                }
+                step.moveTo(StepStatus.PENDING);
+            }
+            last.moveTo(JobStatus.QUEUED);
+            project.moveTo(ProjectStatus.ASSETS_PENDING);
+            log.info("Project {} retry: {} failed steps of assets job {}", projectId, failed.size(), last.getId());
+            return new Created(project, last.getId());
+        });
+        if (restarted == null) {
+            return regenerateScript(userId, projectId);
+        }
+        assetsRunner.start(restarted.jobId());
+        return restarted.project();
+    }
+
+    /**
+     * The user does not like one scene's image and/or voice. Optionally with a new image prompt
+     * or new narration for that scene. Creates a new ASSETS job where only that scene is redone;
+     * every other scene's files are reused from the previous job (no cost).
+     *
+     * @param scene from 0, like the asset URLs
+     */
+    public Project redoScene(UUID userId, UUID projectId, int scene, boolean image, boolean voice,
+                             String newImagePrompt, String newNarration) {
+        Created created = tx.execute(status -> {
+            Project project = lockOwned(userId, projectId);
+            if (project.getStatus() != ProjectStatus.ASSETS_READY) {
+                throw new InvalidTransitionException("project " + projectId, project.getStatus(),
+                        ProjectStatus.ASSETS_PENDING);
+            }
+            VideoScript script = scriptOf(project);
+            if (script == null || scene < 0 || scene >= script.scenes().size()) {
+                throw new ApiException(HttpStatus.NOT_FOUND, "SCENE_NOT_FOUND", "There is no scene " + scene);
+            }
+            if (jobs.countByProjectIdAndKind(projectId, JobKind.ASSETS) >= MAX_ASSETS_JOBS) {
+                throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "TOO_MANY_REDOS",
+                        "A project can be redone at most " + (MAX_ASSETS_JOBS - 1) + " times");
+            }
+
+            boolean redoImage = image || hasText(newImagePrompt);
+            boolean redoVoice = voice || hasText(newNarration);
+            if (!redoImage && !redoVoice) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "NOTHING_TO_REDO", "Choose the image, the voice, or both");
+            }
+
+            // A new prompt or narration changes the script itself.
+            if (hasText(newImagePrompt) || hasText(newNarration)) {
+                List<VideoScript.Scene> scenes = new java.util.ArrayList<>(script.scenes());
+                VideoScript.Scene old = scenes.get(scene);
+                scenes.set(scene, new VideoScript.Scene(
+                        hasText(newNarration) ? newNarration.strip() : old.narration(),
+                        old.onScreenText(),
+                        hasText(newImagePrompt) ? newImagePrompt.strip() : old.imagePrompt()));
+                VideoScript changed = new VideoScript(script.title(), script.musicMood(), scenes);
+                List<String> problems = ScriptValidator.validate(changed, project.getDurationSeconds());
+                if (!problems.isEmpty()) {
+                    throw new InvalidScriptException(problems);
+                }
+                project.setScript(changed.title(), json.writeValueAsString(changed));
+            }
+
+            Job previous = jobs.findFirstByProjectIdAndKindOrderByCreatedAtDesc(projectId, JobKind.ASSETS).orElseThrow();
+            Job job = jobs.save(Job.queue(projectId, JobKind.ASSETS));
+            for (JobStep old : steps.findByJobIdOrderByTypeAscSceneIndexAsc(previous.getId())) {
+                boolean redo = old.getSceneIndex() == scene
+                        && ((old.getType() == StepType.IMAGE && redoImage) || (old.getType() == StepType.VOICE && redoVoice));
+                steps.save(redo
+                        ? JobStep.forScene(job.getId(), old.getType(), old.getSceneIndex())
+                        : JobStep.reuse(job.getId(), old));
+            }
+            project.moveTo(ProjectStatus.ASSETS_PENDING);
+            log.info("Project {} redo scene {} (image={}, voice={})", projectId, scene, redoImage, redoVoice);
+            return new Created(project, job.getId());
+        });
+        assetsRunner.start(created.jobId());
+        return created.project();
+    }
+
+    private static boolean hasText(String s) {
+        return s != null && !s.isBlank();
     }
 
     public Project cancel(UUID userId, UUID projectId) {

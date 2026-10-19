@@ -31,7 +31,10 @@ import org.testcontainers.containers.wait.strategy.Wait;
                 "management.endpoint.health.show-details=always",
                 // All tests come from 127.0.0.1 and register many users; limits would block them.
                 // RateLimitTests turns it back on (its @DynamicPropertySource wins over this).
-                "erkasa.rate-limit.enabled=false"
+                "erkasa.rate-limit.enabled=false",
+                // Several test contexts share one database: none of them may pick up the others'
+                // running jobs on startup. PipelineRecoveryTests calls recover() by hand.
+                "erkasa.pipeline.recover-on-startup=false"
         })
 public abstract class AbstractIntegrationTest {
 
