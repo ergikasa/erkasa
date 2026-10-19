@@ -1,6 +1,7 @@
 import React from 'react';
 import { AbsoluteFill, Audio, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
 import { Captions } from './Captions';
+import { Graphic } from './Graphics';
 import { src } from './media';
 import { AspectRatio, SpecScene } from './spec';
 
@@ -33,12 +34,23 @@ export const Scene: React.FC<{ scene: SpecScene; index: number; aspectRatio: Asp
   const x = interpolate(progress, [0, 1], [move.fromX, move.toX]);
   const y = interpolate(progress, [0, 1], [move.fromY, move.toY]);
   const opacity = interpolate(frame, [0, FADE_FRAMES], [0, 1], { extrapolateRight: 'clamp' });
+  const visual = scene.visual ?? { type: 'image' as const };
+
+  if (visual.type !== 'image') {
+    return (
+      <AbsoluteFill style={{ opacity }}>
+        <Graphic visual={visual} words={scene.words} audioSeconds={scene.audioSeconds} aspectRatio={aspectRatio} />
+        {captions ? <Captions words={scene.words} aspectRatio={aspectRatio} /> : null}
+        {scene.audio ? <Audio src={src(scene.audio)} /> : null}
+      </AbsoluteFill>
+    );
+  }
 
   return (
     <AbsoluteFill style={{ opacity }}>
       <AbsoluteFill style={{ overflow: 'hidden' }}>
         <Img
-          src={src(scene.image)}
+          src={src(scene.image!)}
           style={{
             width: '100%',
             height: '100%',

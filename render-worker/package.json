@@ -8,7 +8,8 @@
     "studio": "remotion studio src/index.ts",
     "render": "tsx src/render-cli.ts",
     "sample": "tsx src/make-sample.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "demo": "tsx src/make-demo.ts"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.537",

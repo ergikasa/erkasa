@@ -14,9 +14,28 @@ export type Word = {
   endSeconds: number;
 };
 
+/**
+ * What the scene SHOWS. Chosen by the LLM per scene:
+ * explain with graphics, use an AI image only when a real picture helps.
+ * Items (steps, list items, compare rows) appear when the voice says them.
+ */
+export type Visual =
+  | { type: 'image' }
+  | { type: 'title'; title: string; subtitle?: string }
+  | { type: 'flow'; steps: string[] }
+  | { type: 'list'; items: string[] }
+  | { type: 'stat'; value: number; prefix?: string; suffix?: string; label: string }
+  | { type: 'compare'; leftTitle: string; rightTitle: string; left: string[]; right: string[] }
+  | { type: 'code'; language?: string; code: string }
+  | { type: 'cta'; text: string; handle?: string };
+
 export type SpecScene = {
-  image: string;
-  audio: string;
+  /** the AI image; only needed when visual is 'image' (or missing) */
+  image?: string;
+  /** voice-over; may be missing in demos (silent scene of audioSeconds) */
+  audio?: string;
+  /** default { type: 'image' } */
+  visual?: Visual;
   /** length of the voice-over of this scene */
   audioSeconds: number;
   /** a few big words on screen at the start of the scene (may be empty) */
@@ -75,8 +94,59 @@ export function validateSpec(spec: RenderSpec): void {
     throw new Error(`Unknown aspectRatio "${spec.aspectRatio}"`);
   }
   spec.scenes.forEach((s, i) => {
-    if (!s.image) throw new Error(`Scene ${i + 1} has no image`);
-    if (!s.audio) throw new Error(`Scene ${i + 1} has no audio`);
+    const type = s.visual?.type ?? 'image';
+    if (type === 'image' && !s.image) throw new Error(`Scene ${i + 1} shows an image but has none`);
     if (!(s.audioSeconds > 0)) throw new Error(`Scene ${i + 1} has no audio length`);
   });
+}
+
+/**
+ * When each item should appear, in seconds from the scene start.
+ * An item appears when the voice says its first word; items the voice never says are
+ * spread evenly between the ones that were found. Always in order, never after the voice ends.
+ */
+export function cueTimes(items: string[], words: Word[], audioSeconds: number): number[] {
+  const norm = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[^\p{L}\p{N}]/gu, '');
+  const cues: (number | null)[] = [];
+  let from = 0;
+  for (const item of items) {
+    const key = norm(item.split(/\s+/)[0] ?? '');
+    let found: number | null = null;
+    if (key.length >= 2) {
+      for (let w = from; w < words.length; w++) {
+        const word = norm(words[w].word);
+        if (word.startsWith(key) || (key.startsWith(word) && word.length >= 3)) {
+          found = words[w].startSeconds;
+          from = w + 1;
+          break;
+        }
+      }
+    }
+    cues.push(found);
+  }
+  // fill the gaps evenly; the first item shows almost at once if not spoken
+  const end = Math.max(0.5, audioSeconds * 0.85);
+  const result: number[] = [];
+  for (let i = 0; i < cues.length; i++) {
+    if (cues[i] != null) {
+      result.push(cues[i]!);
+      continue;
+    }
+    const prev = i === 0 ? 0.15 : result[i - 1];
+    let next = end;
+    let gap = 1;
+    for (let j = i + 1; j < cues.length; j++) {
+      gap++;
+      if (cues[j] != null) {
+        next = cues[j]!;
+        break;
+      }
+    }
+    result.push(i === 0 && cues[0] == null ? 0.15 : prev + (next - prev) / gap);
+  }
+  // keep the order strictly increasing
+  for (let i = 1; i < result.length; i++) {
+    result[i] = Math.max(result[i], result[i - 1] + 0.15);
+  }
+  return result;
 }

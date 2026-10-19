@@ -82,6 +82,10 @@ function copyLocalFiles(spec: RenderSpec, baseDir: string, publicDir: string): R
   return {
     ...spec,
     music: copy(spec.music),
-    scenes: spec.scenes.map((s) => ({ ...s, image: copy(s.image)!, audio: copy(s.audio)! })),
+    scenes: spec.scenes.map((s) => ({
+      ...s,
+      image: copy(s.image) ?? undefined,
+      audio: copy(s.audio) ?? undefined,
+    })),
   };
 }
