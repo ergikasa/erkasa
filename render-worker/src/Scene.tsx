@@ -3,7 +3,7 @@ import { AbsoluteFill, Audio, Img, interpolate, spring, useCurrentFrame, useVide
 import { Captions } from './Captions';
 import { Graphic } from './Graphics';
 import { src } from './media';
-import { AspectRatio, SpecScene } from './spec';
+import { AspectRatio, SpecScene, normalizeVisual } from './spec';
 
 /** Different "camera moves" so consecutive scenes do not all look the same. */
 const MOVES = [
@@ -34,7 +34,7 @@ export const Scene: React.FC<{ scene: SpecScene; index: number; aspectRatio: Asp
   const x = interpolate(progress, [0, 1], [move.fromX, move.toX]);
   const y = interpolate(progress, [0, 1], [move.fromY, move.toY]);
   const opacity = interpolate(frame, [0, FADE_FRAMES], [0, 1], { extrapolateRight: 'clamp' });
-  const visual = scene.visual ?? { type: 'image' as const };
+  const visual = normalizeVisual(scene.visual);
 
   if (visual.type !== 'image') {
     return (

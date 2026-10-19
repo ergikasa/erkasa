@@ -43,9 +43,10 @@ public final class ScriptValidator {
             if (isBlank(s.narration())) {
                 problems.add("Scene " + n + " has no narration.");
             }
-            if (isBlank(s.imagePrompt())) {
+            if (s.needsImage() && isBlank(s.imagePrompt())) {
                 problems.add("Scene " + n + " has no imagePrompt.");
             }
+            problems.addAll(VisualRules.check(s.visual(), n));
             if (countWords(s.onScreenText()) > MAX_ON_SCREEN_WORDS) {
                 problems.add("Scene " + n + " onScreenText is too long; use at most "
                         + MAX_ON_SCREEN_WORDS + " words.");

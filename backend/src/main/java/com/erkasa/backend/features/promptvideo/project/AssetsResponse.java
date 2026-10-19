@@ -15,6 +15,7 @@ import com.erkasa.backend.jobs.StepType;
  * GET /api/projects/{id}/assets: every scene with the state of its image and its voice.
  *
  * @param done    steps finished (SUCCEEDED), for a progress bar: done / total
+ * @param total   image + voice steps of the job (graphic scenes have only a voice)
  * @param costUsd what the providers charged us for these files so far (internal; hidden from users in phase 6)
  */
 public record AssetsResponse(UUID projectId, int done, int total, BigDecimal costUsd, List<SceneAssets> scenes) {
@@ -37,6 +38,7 @@ public record AssetsResponse(UUID projectId, int done, int total, BigDecimal cos
     static AssetsResponse of(UUID projectId, List<JobStep> steps, MetaReader meta) {
         Map<Integer, StepView[]> byScene = new TreeMap<>();
         int done = 0;
+        int total = 0;
         BigDecimal cost = BigDecimal.ZERO;
         for (JobStep s : steps) {
             if (!s.getType().perScene()) {
@@ -50,6 +52,7 @@ public record AssetsResponse(UUID projectId, int done, int total, BigDecimal cos
                     s.getErrorCode(), s.getErrorMessage());
             StepView[] pair = byScene.computeIfAbsent(s.getSceneIndex(), k -> new StepView[2]);
             pair[s.getType() == StepType.IMAGE ? 0 : 1] = view;
+            total++;
             if (s.getStatus() == StepStatus.SUCCEEDED) {
                 done++;
             }
@@ -57,6 +60,7 @@ public record AssetsResponse(UUID projectId, int done, int total, BigDecimal cos
         }
         List<SceneAssets> scenes = new ArrayList<>();
         byScene.forEach((scene, pair) -> scenes.add(new SceneAssets(scene, pair[0], pair[1])));
-        return new AssetsResponse(projectId, done, scenes.size() * 2, cost, scenes);
+        // Not scenes x 2: motion-graphics scenes have a voice but no image (5.2a).
+        return new AssetsResponse(projectId, done, total, cost, scenes);
     }
 }

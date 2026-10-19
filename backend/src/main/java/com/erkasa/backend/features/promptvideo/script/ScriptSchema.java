@@ -24,11 +24,12 @@ public final class ScriptSchema {
         sceneProps.put("narration", Map.of("type", "string"));
         sceneProps.put("onScreenText", Map.of("type", "string"));
         sceneProps.put("imagePrompt", Map.of("type", "string"));
+        sceneProps.put("visual", visual());
 
         Map<String, Object> scene = new LinkedHashMap<>();
         scene.put("type", "object");
         scene.put("properties", sceneProps);
-        scene.put("required", List.of("narration", "onScreenText", "imagePrompt"));
+        scene.put("required", List.of("narration", "onScreenText", "imagePrompt", "visual"));
         scene.put("additionalProperties", false);
 
         Map<String, Object> props = new LinkedHashMap<>();
@@ -42,5 +43,36 @@ public final class ScriptSchema {
         root.put("required", List.of("title", "musicMood", "scenes"));
         root.put("additionalProperties", false);
         return root;
+    }
+
+    /** The flat visual object (see {@link Visual}): every field present, unused ones empty. */
+    private static Map<String, Object> visual() {
+        Map<String, Object> str = Map.of("type", "string");
+        Map<String, Object> strings = Map.of("type", "array", "items", str);
+        Map<String, Object> props = new LinkedHashMap<>();
+        props.put("type", Map.of("type", "string", "enum",
+                List.of("image", "title", "flow", "list", "stat", "compare", "code", "cta")));
+        props.put("title", str);
+        props.put("subtitle", str);
+        props.put("items", strings);
+        props.put("value", Map.of("type", "number"));
+        props.put("prefix", str);
+        props.put("suffix", str);
+        props.put("label", str);
+        props.put("leftTitle", str);
+        props.put("rightTitle", str);
+        props.put("left", strings);
+        props.put("right", strings);
+        props.put("code", str);
+        props.put("language", str);
+        props.put("text", str);
+        props.put("handle", str);
+
+        Map<String, Object> visual = new LinkedHashMap<>();
+        visual.put("type", "object");
+        visual.put("properties", props);
+        visual.put("required", List.copyOf(props.keySet()));
+        visual.put("additionalProperties", false);
+        return visual;
     }
 }

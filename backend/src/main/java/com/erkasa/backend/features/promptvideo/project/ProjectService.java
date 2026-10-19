@@ -181,7 +181,10 @@ public class ProjectService {
             }
             Job job = jobs.save(Job.queue(projectId, JobKind.ASSETS));
             for (int scene = 0; scene < script.scenes().size(); scene++) {
-                steps.save(JobStep.forScene(job.getId(), StepType.IMAGE, scene));
+                // Motion-graphics scenes are drawn by the render worker: no image to generate (or pay for).
+                if (script.scenes().get(scene).needsImage()) {
+                    steps.save(JobStep.forScene(job.getId(), StepType.IMAGE, scene));
+                }
                 steps.save(JobStep.forScene(job.getId(), StepType.VOICE, scene));
             }
             log.info("Project {} script approved: {} scenes", projectId, script.scenes().size());
@@ -281,6 +284,10 @@ public class ProjectService {
 
             boolean redoImage = image || hasText(newImagePrompt);
             boolean redoVoice = voice || hasText(newNarration);
+            if (redoImage && !script.scenes().get(scene).needsImage()) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "NO_IMAGE_IN_SCENE",
+                        "Scene " + scene + " shows motion graphics, not an image; only its voice can be redone");
+            }
             if (!redoImage && !redoVoice) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "NOTHING_TO_REDO", "Choose the image, the voice, or both");
             }
@@ -292,7 +299,8 @@ public class ProjectService {
                 scenes.set(scene, new VideoScript.Scene(
                         hasText(newNarration) ? newNarration.strip() : old.narration(),
                         old.onScreenText(),
-                        hasText(newImagePrompt) ? newImagePrompt.strip() : old.imagePrompt()));
+                        hasText(newImagePrompt) ? newImagePrompt.strip() : old.imagePrompt(),
+                        old.visual()));
                 VideoScript changed = new VideoScript(script.title(), script.musicMood(), scenes);
                 List<String> problems = ScriptValidator.validate(changed, project.getDurationSeconds());
                 if (!problems.isEmpty()) {

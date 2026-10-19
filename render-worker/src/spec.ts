@@ -57,6 +57,36 @@ export type RenderSpec = {
   scenes: SpecScene[];
 };
 
+/**
+ * The backend writes one flat object for every visual type (see backend Visual.java):
+ * { type, title, subtitle, items, value, prefix, suffix, label, leftTitle, rightTitle,
+ *   left, right, code, language, text, handle } with unused fields empty.
+ * This turns it (or an already typed Visual) into the typed form the templates use.
+ */
+export function normalizeVisual(raw: unknown): Visual {
+  const v = (raw ?? {}) as Record<string, unknown>;
+  const str = (k: string) => (typeof v[k] === 'string' ? (v[k] as string) : '');
+  const list = (k: string) => (Array.isArray(v[k]) ? (v[k] as unknown[]).map(String).filter((x) => x.trim()) : []);
+  switch (v.type) {
+    case 'title':
+      return { type: 'title', title: str('title'), subtitle: str('subtitle') || undefined };
+    case 'flow':
+      return { type: 'flow', steps: list('steps').length ? list('steps') : list('items') };
+    case 'list':
+      return { type: 'list', items: list('items') };
+    case 'stat':
+      return { type: 'stat', value: Number(v.value) || 0, prefix: str('prefix'), suffix: str('suffix'), label: str('label') };
+    case 'compare':
+      return { type: 'compare', leftTitle: str('leftTitle'), rightTitle: str('rightTitle'), left: list('left'), right: list('right') };
+    case 'code':
+      return { type: 'code', code: str('code'), language: str('language') || undefined };
+    case 'cta':
+      return { type: 'cta', text: str('text'), handle: str('handle') || undefined };
+    default:
+      return { type: 'image' };
+  }
+}
+
 export const DEFAULT_FPS = 30;
 
 /** Pause after each scene's voice before the next scene starts. */

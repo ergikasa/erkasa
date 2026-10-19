@@ -168,6 +168,60 @@ class AssetsJobTests extends AbstractIntegrationTest {
     }
 
     @Test
+    void motionGraphicScenesGetAVoiceButNoImage() throws Exception {
+        String token = login();
+        HttpResponse<byte[]> created = call("POST", "/api/projects", """
+                {"idea": "how CI/CD works", "language": "EN", "durationSeconds": 30}
+                """, token);
+        String id = read(created).path("id").asString();
+        JsonNode review = waitFor(token, id, "SCRIPT_REVIEW");
+        JsonNode mockScenes = review.path("script").path("scenes");
+
+        // keep the mock narration (right length), but make every scene except the last a graphic
+        StringBuilder scenes = new StringBuilder();
+        for (int i = 0; i < mockScenes.size(); i++) {
+            String narration = json.writeValueAsString(mockScenes.get(i).path("narration").asString());
+            String visual = i == mockScenes.size() - 1
+                    ? "{\"type\":\"image\"}"
+                    : "{\"type\":\"flow\",\"items\":[\"Code\",\"Build\",\"Test\",\"Deploy\"]}";
+            String prompt = i == mockScenes.size() - 1 ? "Mock scene image" : "";
+            if (i > 0) scenes.append(',');
+            scenes.append("{\"narration\":").append(narration)
+                    .append(",\"onScreenText\":\"\",\"imagePrompt\":\"").append(prompt)
+                    .append("\",\"visual\":").append(visual).append('}');
+        }
+        HttpResponse<byte[]> edit = call("PUT", "/api/projects/" + id + "/script",
+                "{\"script\":{\"title\":\"CI/CD\",\"musicMood\":\"upbeat\",\"scenes\":[" + scenes + "]}}", token);
+        assertThat(edit.statusCode()).as(new String(edit.body(), StandardCharsets.UTF_8)).isEqualTo(200);
+        assertThat(call("POST", "/api/projects/" + id + "/approve", null, token).statusCode()).isEqualTo(200);
+
+        JsonNode ready = waitFor(token, id, "ASSETS_READY");
+        String jobId = ready.path("jobs").get(1).path("id").asString();
+        int n = mockScenes.size();
+        // only the last scene has an image; every scene has a voice
+        assertThat(jdbc.queryForObject("select count(*) from job_steps where job_id = ?::uuid and type = 'IMAGE'",
+                Integer.class, jobId)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from provider_usage where kind = 'IMAGE' and job_id = ?::uuid",
+                Integer.class, jobId)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from provider_usage where kind = 'TTS' and job_id = ?::uuid",
+                Integer.class, jobId)).isEqualTo(n);
+
+        JsonNode assets = read(call("GET", "/api/projects/" + id + "/assets", null, token));
+        assertThat(assets.path("total").asInt()).isEqualTo(n + 1);
+        assertThat(assets.path("done").asInt()).isEqualTo(n + 1);
+        JsonNode first = assets.path("scenes").get(0);
+        assertThat(first.path("image").isNull() || first.path("image").isMissingNode()).isTrue();
+        assertThat(first.path("voice").path("status").asString()).isEqualTo("SUCCEEDED");
+        // the visual is stored with the script, for the render worker
+        assertThat(ready.path("script").path("scenes").get(0).path("visual").path("type").asString()).isEqualTo("flow");
+
+        // redoing the image of a graphic scene makes no sense
+        HttpResponse<byte[]> redo = call("POST", "/api/projects/" + id + "/scenes/0/redo", "{\"image\":true}", token);
+        assertThat(redo.statusCode()).isEqualTo(400);
+        assertThat(new String(redo.body(), StandardCharsets.UTF_8)).contains("NO_IMAGE_IN_SCENE");
+    }
+
+    @Test
     void approvingAgainDoesNotStartASecondAssetsJob() throws Exception {
         String token = login();
         String id = approvedProject(token, "approve twice");

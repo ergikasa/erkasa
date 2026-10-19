@@ -2,12 +2,12 @@
  * Builds spec.json from a folder made by the 3.5 smoke run (backend/smoke-output/<jobId>/),
  * so you can render a real video from real AI files before the backend sends render jobs (5.2).
  *
- *   npm run sample -- C:\dev\erkasa\backend\smoke-output\<jobId>
+ *   npm run sample -- C:\dev\erkasa\backend\smoke-output\<jobId> [PORTRAIT|LANDSCAPE]
  *   npm run render -- C:\dev\erkasa\backend\smoke-output\<jobId>\spec.json
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { AspectRatio, RenderSpec, Word } from './spec';
+import { AspectRatio, RenderSpec, Word, normalizeVisual } from './spec';
 
 type Summary = {
   title: string;
@@ -19,6 +19,7 @@ type Summary = {
     audioFile: string;
     audioSeconds: number;
     words: Word[];
+    visual?: unknown;
   }[];
 };
 type Script = { scenes: { onScreenText?: string }[] };
@@ -41,14 +42,16 @@ if (!summary.rendered?.length) {
   process.exit(1);
 }
 
-const first = summary.rendered[0];
+const withImage = summary.rendered.find((r) => r.imageFile);
 const spec: RenderSpec = {
-  aspectRatio: aspectOf(first.imageWidth, first.imageHeight),
+  // from an image if there is one; graphics-only videos are portrait unless told otherwise
+  aspectRatio: (process.argv[3] as AspectRatio) || (withImage ? aspectOf(withImage.imageWidth, withImage.imageHeight) : 'PORTRAIT'),
   title: summary.title,
   captions: true,
   scenes: summary.rendered.map((r) => ({
-    image: r.imageFile,
+    image: r.imageFile || undefined,
     audio: r.audioFile,
+    visual: normalizeVisual(r.visual),
     audioSeconds: r.audioSeconds,
     onScreenText: script.scenes[r.scene - 1]?.onScreenText ?? '',
     words: r.words,

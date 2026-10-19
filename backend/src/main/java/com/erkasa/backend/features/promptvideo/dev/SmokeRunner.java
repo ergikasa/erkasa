@@ -69,7 +69,8 @@ public class SmokeRunner {
                               int imageHeight,
                               String audioFile,
                               double audioSeconds,
-                              List<WordTiming> words) {
+                              List<WordTiming> words,
+                              com.erkasa.backend.features.promptvideo.script.Visual visual) {
     }
 
     public record CostLine(String kind, String provider, String model, long calls, long failed, BigDecimal costUsd) {
@@ -107,10 +108,18 @@ public class SmokeRunner {
             VideoScript.Scene scene = script.scenes().get(i);
             int n = i + 1;
 
-            GeneratedImage image = gateway.generateImage(
-                    new ImageRequest(scene.imagePrompt(), request.aspectRatio()), ctx);
-            String imageFile = "scene-" + n + "." + extension(image.contentType());
-            write(dir.resolve(imageFile), image.data());
+            // Motion-graphics scenes have no image: the render worker draws them.
+            String imageFile = null;
+            int imageWidth = 0;
+            int imageHeight = 0;
+            if (scene.needsImage()) {
+                GeneratedImage image = gateway.generateImage(
+                        new ImageRequest(scene.imagePrompt(), request.aspectRatio()), ctx);
+                imageFile = "scene-" + n + "." + extension(image.contentType());
+                write(dir.resolve(imageFile), image.data());
+                imageWidth = image.width();
+                imageHeight = image.height();
+            }
 
             SpeechResult voice = gateway.synthesize(
                     new SpeechRequest(scene.narration(), request.language(), null), ctx);
@@ -119,8 +128,8 @@ public class SmokeRunner {
             write(dir.resolve("scene-" + n + ".words.json"),
                     json.writerWithDefaultPrettyPrinter().writeValueAsString(voice.words()));
 
-            rendered.add(new SceneResult(n, scene.narration(), imageFile, image.width(), image.height(),
-                    audioFile, voice.durationSeconds(), voice.words()));
+            rendered.add(new SceneResult(n, scene.narration(), imageFile, imageWidth, imageHeight,
+                    audioFile, voice.durationSeconds(), voice.words(), scene.visual()));
             log.info("Smoke run {}: scene {}/{} done", jobId, n, count);
         }
 
