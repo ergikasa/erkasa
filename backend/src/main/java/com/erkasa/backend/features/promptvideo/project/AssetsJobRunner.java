@@ -67,12 +67,13 @@ public class AssetsJobRunner {
     private final PipelineWorkers workers;
     private final TransactionTemplate tx;
     private final ObjectMapper json;
+    private final ProjectEvents events;
     /** Provider calls of all jobs share this pool, so 10 users approving at once cannot open 300 connections. */
     private final ExecutorService calls;
 
     public AssetsJobRunner(ProjectRepository projects, JobRepository jobs, JobStepRepository steps,
                            ProviderGateway gateway, AssetStorage storage, PipelineWorkers workers,
-                           TransactionTemplate tx, ObjectMapper json,
+                           TransactionTemplate tx, ObjectMapper json, ProjectEvents events,
                            @Value("${erkasa.pipeline.parallel-calls:6}") int parallelCalls) {
         this.projects = projects;
         this.jobs = jobs;
@@ -82,6 +83,7 @@ public class AssetsJobRunner {
         this.workers = workers;
         this.tx = tx;
         this.json = json;
+        this.events = events;
         AtomicInteger n = new AtomicInteger();
         this.calls = Executors.newFixedThreadPool(parallelCalls, r -> {
             Thread t = new Thread(r, "provider-call-" + n.incrementAndGet());
@@ -121,6 +123,7 @@ public class AssetsJobRunner {
         CompletableFuture.allOf(running.toArray(CompletableFuture[]::new)).join();
 
         tx.executeWithoutResult(status -> finish(jobId));
+        events.changed(ctx.projectId());
     }
 
     private Context begin(UUID jobId) {
@@ -172,6 +175,7 @@ public class AssetsJobRunner {
             tx.executeWithoutResult(status ->
                     steps.findById(stepId).orElseThrow().fail("INTERNAL_ERROR", String.valueOf(e.getMessage()), BigDecimal.ZERO));
         }
+        events.changed(ctx.projectId()); // progress: one more file done (or failed)
     }
 
     private record Done(String key, String metaJson, BigDecimal cost) {

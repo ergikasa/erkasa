@@ -52,10 +52,11 @@ public class ScriptJobRunner {
     private final TransactionTemplate tx;
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
+    private final ProjectEvents events;
 
     public ScriptJobRunner(ProjectRepository projects, JobRepository jobs, JobStepRepository steps,
                            ScriptGenerator scripts, PipelineWorkers workers, TransactionTemplate tx,
-                           JdbcTemplate jdbc, ObjectMapper json) {
+                           JdbcTemplate jdbc, ObjectMapper json, ProjectEvents events) {
         this.projects = projects;
         this.jobs = jobs;
         this.steps = steps;
@@ -64,6 +65,7 @@ public class ScriptJobRunner {
         this.tx = tx;
         this.jdbc = jdbc;
         this.json = json;
+        this.events = events;
     }
 
     /** Call AFTER the transaction that created the job has committed. */
@@ -92,6 +94,7 @@ public class ScriptJobRunner {
             tx.executeWithoutResult(status -> fail(jobId, "INTERNAL_ERROR", "Unexpected error while writing the script"));
             log.error("Script job {} crashed", jobId, e);
         }
+        events.changed(project.getId());
     }
 
     private ScriptRequest begin(UUID jobId) {

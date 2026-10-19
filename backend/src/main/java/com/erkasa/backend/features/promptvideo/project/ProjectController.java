@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.erkasa.backend.features.promptvideo.script.ScriptRequest;
 import com.erkasa.backend.features.promptvideo.script.VideoScript;
@@ -48,6 +49,7 @@ import jakarta.validation.constraints.Size;
  *   POST /api/projects/{id}/cancel              stop the project for good
  *   POST /api/projects/{id}/retry               FAILED -> redo only what failed
  *   POST /api/projects/{id}/scenes/{n}/redo     redo scene n's image and/or voice (ASSETS_READY)
+ *   GET  /api/projects/{id}/events              live updates (Server-Sent Events)
  *   GET  /api/projects/{id}/assets              every scene's image and voice (progress + links)
  *   GET  /api/projects/{id}/assets/{n}/image    the image file of scene n (0, 1, 2...)
  *   GET  /api/projects/{id}/assets/{n}/voice    the voice file of scene n
@@ -113,6 +115,18 @@ public class ProjectController {
     @PostMapping("/{id}/cancel")
     public ProjectResponse cancel(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
         return full(service.cancel(userId(jwt), id));
+    }
+
+    /**
+     * Live updates (Server-Sent Events). Each "project" event is a full snapshot:
+     * {"projectId", "status", "title", "done", "total", "errorCode", "errorMessage", "at"}.
+     *
+     * Browsers: the built-in EventSource cannot send the Authorization header, so the frontend
+     * uses fetch-based SSE (@microsoft/fetch-event-source) with "Authorization: Bearer ...".
+     */
+    @GetMapping("/{id}/events")
+    public SseEmitter events(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+        return service.subscribe(userId(jwt), id);
     }
 
     /** "Try again" on a FAILED project: redoes only what failed. */

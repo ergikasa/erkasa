@@ -62,12 +62,13 @@ public class ProjectService {
     private final ScriptJobRunner scriptRunner;
     private final AssetsJobRunner assetsRunner;
     private final AssetStorage storage;
+    private final ProjectEvents events;
     private final TransactionTemplate tx;
     private final ObjectMapper json;
 
     public ProjectService(ProjectRepository projects, JobRepository jobs, JobStepRepository steps,
                           TtsVoiceRepository voices, ScriptJobRunner scriptRunner,
-                          AssetsJobRunner assetsRunner, AssetStorage storage,
+                          AssetsJobRunner assetsRunner, AssetStorage storage, ProjectEvents events,
                           TransactionTemplate tx, ObjectMapper json) {
         this.projects = projects;
         this.jobs = jobs;
@@ -76,6 +77,7 @@ public class ProjectService {
         this.scriptRunner = scriptRunner;
         this.assetsRunner = assetsRunner;
         this.storage = storage;
+        this.events = events;
         this.tx = tx;
         this.json = json;
     }
@@ -122,7 +124,7 @@ public class ProjectService {
 
     /** The user changed the script during review. It must pass the same checks as the LLM's script. */
     public Project updateScript(UUID userId, UUID projectId, VideoScript script) {
-        return tx.execute(status -> {
+        return notify(tx.execute(status -> {
             Project project = lockOwned(userId, projectId);
             if (project.getStatus() != ProjectStatus.SCRIPT_REVIEW) {
                 throw new ApiException(HttpStatus.CONFLICT, "INVALID_STATE",
@@ -134,7 +136,7 @@ public class ProjectService {
             }
             project.setScript(script.title(), json.writeValueAsString(script));
             return project;
-        });
+        }));
     }
 
     /** Throws the current script away and writes a new one. */
@@ -156,7 +158,7 @@ public class ProjectService {
             return new Created(project, job.getId());
         });
         scriptRunner.start(created.jobId());
-        return created.project();
+        return notify(created.project());
     }
 
     /**
@@ -186,7 +188,7 @@ public class ProjectService {
             return new Created(project, job.getId());
         });
         assetsRunner.start(created.jobId());
-        return created.project();
+        return notify(created.project());
     }
 
     /** Every IMAGE / VOICE step of the latest ASSETS job, scene by scene (empty before approval). */
@@ -250,7 +252,7 @@ public class ProjectService {
             return regenerateScript(userId, projectId);
         }
         assetsRunner.start(restarted.jobId());
-        return restarted.project();
+        return notify(restarted.project());
     }
 
     /**
@@ -313,7 +315,7 @@ public class ProjectService {
             return new Created(project, job.getId());
         });
         assetsRunner.start(created.jobId());
-        return created.project();
+        return notify(created.project());
     }
 
     private static boolean hasText(String s) {
@@ -321,12 +323,24 @@ public class ProjectService {
     }
 
     public Project cancel(UUID userId, UUID projectId) {
-        return tx.execute(status -> {
+        return notify(tx.execute(status -> {
             Project project = lockOwned(userId, projectId);
             project.moveTo(ProjectStatus.CANCELLED);
             log.info("Project {} cancelled", projectId);
             return project;
-        });
+        }));
+    }
+
+    /** Live update for open browser tabs (4.5). Called after the change is committed. */
+    private Project notify(Project project) {
+        events.changed(project.getId());
+        return project;
+    }
+
+    /** Opens the live update stream; 404 for other users' projects. */
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter subscribe(UUID userId, UUID projectId) {
+        get(userId, projectId);
+        return events.subscribe(projectId);
     }
 
     /** The project's script as an object, or null while it is still being written. */
