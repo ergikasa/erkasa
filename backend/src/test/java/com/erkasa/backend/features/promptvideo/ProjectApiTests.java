@@ -148,7 +148,8 @@ class ProjectApiTests extends AbstractIntegrationTest {
 
         HttpResponse<String> second = call("POST", "/api/projects/" + id + "/approve", null, token);
         assertThat(second.statusCode()).isEqualTo(409);
-        assertThat(second.body()).contains("\"code\":\"INVALID_STATE\"", "ASSETS_PENDING");
+        // ASSETS_PENDING, or ASSETS_READY if the mock providers were already done
+        assertThat(second.body()).contains("\"code\":\"INVALID_STATE\"", "\"currentStatus\":\"ASSETS_");
 
         // after approval the script can no longer be edited
         HttpResponse<String> edit = call("PUT", "/api/projects/" + id + "/script",

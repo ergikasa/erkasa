@@ -10,9 +10,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.erkasa.backend.assets.AssetStorage;
 import com.erkasa.backend.common.error.ApiException;
 import com.erkasa.backend.features.promptvideo.script.ScriptValidator;
 import com.erkasa.backend.features.promptvideo.script.VideoScript;
+import com.erkasa.backend.jobs.InvalidTransitionException;
 import com.erkasa.backend.jobs.Job;
 import com.erkasa.backend.jobs.JobKind;
 import com.erkasa.backend.jobs.JobRepository;
@@ -50,17 +52,22 @@ public class ProjectService {
     private final JobStepRepository steps;
     private final TtsVoiceRepository voices;
     private final ScriptJobRunner scriptRunner;
+    private final AssetsJobRunner assetsRunner;
+    private final AssetStorage storage;
     private final TransactionTemplate tx;
     private final ObjectMapper json;
 
     public ProjectService(ProjectRepository projects, JobRepository jobs, JobStepRepository steps,
                           TtsVoiceRepository voices, ScriptJobRunner scriptRunner,
+                          AssetsJobRunner assetsRunner, AssetStorage storage,
                           TransactionTemplate tx, ObjectMapper json) {
         this.projects = projects;
         this.jobs = jobs;
         this.steps = steps;
         this.voices = voices;
         this.scriptRunner = scriptRunner;
+        this.assetsRunner = assetsRunner;
+        this.storage = storage;
         this.tx = tx;
         this.json = json;
     }
@@ -144,14 +151,59 @@ public class ProjectService {
         return created.project();
     }
 
-    /** The user is happy with the script. 4.3 starts the images and voices from here. */
+    /**
+     * The user is happy with the script: creates the ASSETS job with one IMAGE and one VOICE
+     * step per scene, then starts it in the background.
+     */
     public Project approve(UUID userId, UUID projectId) {
-        return tx.execute(status -> {
+        Created created = tx.execute(status -> {
             Project project = lockOwned(userId, projectId);
+            // Only from review: ASSETS_READY -> ASSETS_PENDING is also a legal move (redo a scene),
+            // but "approve" must not start a second full ASSETS job.
+            if (project.getStatus() != ProjectStatus.SCRIPT_REVIEW) {
+                throw new InvalidTransitionException("project " + projectId, project.getStatus(),
+                        ProjectStatus.ASSETS_PENDING);
+            }
             project.moveTo(ProjectStatus.ASSETS_PENDING);
-            log.info("Project {} script approved", projectId);
-            return project;
+            VideoScript script = scriptOf(project);
+            if (script == null || script.scenes() == null || script.scenes().isEmpty()) {
+                throw new ApiException(HttpStatus.CONFLICT, "NO_SCRIPT", "This project has no script to approve");
+            }
+            Job job = jobs.save(Job.queue(projectId, JobKind.ASSETS));
+            for (int scene = 0; scene < script.scenes().size(); scene++) {
+                steps.save(JobStep.forScene(job.getId(), StepType.IMAGE, scene));
+                steps.save(JobStep.forScene(job.getId(), StepType.VOICE, scene));
+            }
+            log.info("Project {} script approved: {} scenes", projectId, script.scenes().size());
+            return new Created(project, job.getId());
         });
+        assetsRunner.start(created.jobId());
+        return created.project();
+    }
+
+    /** Every IMAGE / VOICE step of the latest ASSETS job, scene by scene (empty before approval). */
+    public List<JobStep> assetStepsOf(UUID userId, UUID projectId) {
+        get(userId, projectId); // 404 for other users
+        return jobs.findFirstByProjectIdAndKindOrderByCreatedAtDesc(projectId, JobKind.ASSETS)
+                .map(job -> steps.findByJobIdOrderByTypeAscSceneIndexAsc(job.getId()))
+                .orElse(List.of());
+    }
+
+    /** The bytes of one scene's image or voice, or 404 if it does not exist (yet). */
+    public Asset asset(UUID userId, UUID projectId, int scene, StepType type) {
+        JobStep step = assetStepsOf(userId, projectId).stream()
+                .filter(s -> s.getType() == type && s.getSceneIndex() == scene && s.getOutputKey() != null)
+                .findFirst()
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "ASSET_NOT_FOUND",
+                        "No " + type.name().toLowerCase() + " for scene " + scene + " yet"));
+        byte[] data = storage.get(step.getOutputKey());
+        if (data == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "ASSET_NOT_FOUND", "The file is missing from storage");
+        }
+        return new Asset(data, AssetStorage.contentTypeOf(step.getOutputKey()));
+    }
+
+    public record Asset(byte[] data, String contentType) {
     }
 
     public Project cancel(UUID userId, UUID projectId) {
