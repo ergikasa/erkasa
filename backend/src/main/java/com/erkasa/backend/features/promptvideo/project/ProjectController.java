@@ -49,6 +49,8 @@ import jakarta.validation.constraints.Size;
  *   POST /api/projects/{id}/cancel              stop the project for good
  *   POST /api/projects/{id}/retry               FAILED -> redo only what failed
  *   POST /api/projects/{id}/scenes/{n}/redo     redo scene n's image and/or voice (ASSETS_READY)
+ *   POST /api/projects/{id}/render              make the MP4 (ASSETS_READY -> RENDERING -> DONE)
+ *   GET  /api/projects/{id}/video               the finished MP4 (?download=true to save it)
  *   GET  /api/projects/{id}/events              live updates (Server-Sent Events)
  *   GET  /api/projects/{id}/assets              every scene's image and voice (progress + links)
  *   GET  /api/projects/{id}/assets/{n}/image    the image file of scene n (0, 1, 2...)
@@ -155,6 +157,27 @@ public class ProjectController {
                 Boolean.TRUE.equals(body.image()), Boolean.TRUE.equals(body.voice()),
                 body.imagePrompt(), body.narration());
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(full(project));
+    }
+
+    /** Make the MP4 from the script + files (ASSETS_READY -> RENDERING -> DONE). 202: it takes a minute or two. */
+    @PostMapping("/{id}/render")
+    public ResponseEntity<ProjectResponse> render(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(full(service.render(userId(jwt), id)));
+    }
+
+    /** The finished video (status DONE). Add ?download=true to save it as a file. */
+    @GetMapping("/{id}/video")
+    public ResponseEntity<byte[]> video(@PathVariable UUID id,
+                                        @RequestParam(defaultValue = "false") boolean download,
+                                        @AuthenticationPrincipal Jwt jwt) {
+        ProjectService.Asset video = service.video(userId(jwt), id);
+        ResponseEntity.BodyBuilder res = ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(video.contentType()))
+                .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePrivate());
+        if (download) {
+            res.header("Content-Disposition", "attachment; filename=\"erkasa-" + id + ".mp4\"");
+        }
+        return res.body(video.data());
     }
 
     /** Every scene's image and voice: status, download link, size / duration / word timings. */

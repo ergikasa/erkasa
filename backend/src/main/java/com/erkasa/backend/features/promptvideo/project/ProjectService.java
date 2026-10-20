@@ -12,6 +12,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.erkasa.backend.assets.AssetStorage;
 import com.erkasa.backend.common.error.ApiException;
+import com.erkasa.backend.features.promptvideo.render.RenderJobService;
 import com.erkasa.backend.features.promptvideo.script.ScriptValidator;
 import com.erkasa.backend.features.promptvideo.script.VideoScript;
 import com.erkasa.backend.jobs.InvalidTransitionException;
@@ -63,13 +64,14 @@ public class ProjectService {
     private final AssetsJobRunner assetsRunner;
     private final AssetStorage storage;
     private final ProjectEvents events;
+    private final RenderJobService renders;
     private final TransactionTemplate tx;
     private final ObjectMapper json;
 
     public ProjectService(ProjectRepository projects, JobRepository jobs, JobStepRepository steps,
                           TtsVoiceRepository voices, ScriptJobRunner scriptRunner,
                           AssetsJobRunner assetsRunner, AssetStorage storage, ProjectEvents events,
-                          TransactionTemplate tx, ObjectMapper json) {
+                          RenderJobService renders, TransactionTemplate tx, ObjectMapper json) {
         this.projects = projects;
         this.jobs = jobs;
         this.steps = steps;
@@ -78,6 +80,7 @@ public class ProjectService {
         this.assetsRunner = assetsRunner;
         this.storage = storage;
         this.events = events;
+        this.renders = renders;
         this.tx = tx;
         this.json = json;
     }
@@ -107,7 +110,11 @@ public class ProjectService {
         return created.project();
     }
 
-    private record Created(Project project, UUID jobId) {
+    private record Created(Project project, UUID jobId, JobKind kind) {
+
+        Created(Project project, UUID jobId) {
+            this(project, jobId, null);
+        }
     }
 
     public Project get(UUID userId, UUID projectId) {
@@ -233,6 +240,12 @@ public class ProjectService {
             }
             List<Job> history = jobs.findByProjectIdOrderByCreatedAtAsc(projectId);
             Job last = history.get(history.size() - 1);
+            if (last.getKind() == JobKind.RENDER) {
+                // the files are fine, only the MP4 failed: send the same render job again
+                renders.requeueFailed(last);
+                project.moveTo(ProjectStatus.RENDERING);
+                return new Created(project, last.getId(), JobKind.RENDER);
+            }
             if (last.getKind() != JobKind.ASSETS) {
                 return null; // the script stage failed: handled by regenerateScript below
             }
@@ -249,12 +262,16 @@ public class ProjectService {
             last.moveTo(JobStatus.QUEUED);
             project.moveTo(ProjectStatus.ASSETS_PENDING);
             log.info("Project {} retry: {} failed steps of assets job {}", projectId, failed.size(), last.getId());
-            return new Created(project, last.getId());
+            return new Created(project, last.getId(), JobKind.ASSETS);
         });
         if (restarted == null) {
             return regenerateScript(userId, projectId);
         }
-        assetsRunner.start(restarted.jobId());
+        if (restarted.kind() == JobKind.RENDER) {
+            renders.send(restarted.jobId());
+        } else {
+            assetsRunner.start(restarted.jobId());
+        }
         return notify(restarted.project());
     }
 
@@ -337,6 +354,22 @@ public class ProjectService {
             log.info("Project {} cancelled", projectId);
             return project;
         }));
+    }
+
+    /** "Make the video" (5.2b): ASSETS_READY -> RENDERING, the worker makes the MP4. */
+    public Project render(UUID userId, UUID projectId) {
+        return renders.start(userId, projectId);
+    }
+
+    /** The finished MP4, or 404 while the project is not DONE. */
+    public Asset video(UUID userId, UUID projectId) {
+        get(userId, projectId); // 404 for other users
+        String key = renders.videoKey(projectId);
+        byte[] data = key == null ? null : storage.get(key);
+        if (data == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "VIDEO_NOT_READY", "The video is not ready yet");
+        }
+        return new Asset(data, "video/mp4");
     }
 
     /** Live update for open browser tabs (4.5). Called after the change is committed. */

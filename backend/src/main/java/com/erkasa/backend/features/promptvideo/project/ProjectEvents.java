@@ -51,13 +51,15 @@ public class ProjectEvents {
 
     /** What every event carries. done/total count the latest ASSETS job (0/0 before approval). */
     public record Snapshot(UUID projectId, ProjectStatus status, String title, int done, int total,
-                           String errorCode, String errorMessage, Instant at) {
+                           Integer renderPercent, String errorCode, String errorMessage, Instant at) {
     }
 
     private final ProjectRepository projects;
     private final JobRepository jobs;
     private final JobStepRepository steps;
     private final Map<UUID, List<SseEmitter>> streams = new ConcurrentHashMap<>();
+    /** Render progress reported by the worker, only while RENDERING (not worth a DB write per %). */
+    private final Map<UUID, Integer> renderPercent = new ConcurrentHashMap<>();
     private final ScheduledExecutorService heartbeat = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "sse-heartbeat");
         t.setDaemon(true);
@@ -111,6 +113,18 @@ public class ProjectEvents {
         }
     }
 
+    /** The render worker reported progress (0-100). */
+    public void renderProgress(UUID projectId, int percent) {
+        renderPercent.put(projectId, Math.max(0, Math.min(100, percent)));
+        changed(projectId);
+    }
+
+    /** The render ended (DONE or FAILED): forget the percentage and tell the browsers. */
+    public void renderFinished(UUID projectId) {
+        renderPercent.remove(projectId);
+        changed(projectId);
+    }
+
     /** How many browsers are watching (for tests and monitoring). */
     public int watchers(UUID projectId) {
         List<SseEmitter> list = streams.get(projectId);
@@ -129,7 +143,8 @@ public class ProjectEvents {
             total = (int) steps.countByJobId(assets.get().getId());
             done = (int) steps.countByJobIdAndStatus(assets.get().getId(), StepStatus.SUCCEEDED);
         }
-        return new Snapshot(p.getId(), p.getStatus(), p.getTitle(), done, total,
+        Integer percent = p.getStatus() == ProjectStatus.RENDERING ? renderPercent.getOrDefault(p.getId(), 0) : null;
+        return new Snapshot(p.getId(), p.getStatus(), p.getTitle(), done, total, percent,
                 p.getErrorCode(), p.getErrorMessage(), Instant.now());
     }
 

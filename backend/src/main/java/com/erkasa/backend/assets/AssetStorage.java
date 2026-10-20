@@ -1,5 +1,7 @@
 package com.erkasa.backend.assets;
 
+import java.time.Duration;
+
 import org.springframework.stereotype.Service;
 
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -7,6 +9,9 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 /**
  * Reads and writes the files a video is made of (scene images, voice-overs, later the MP4).
@@ -18,11 +23,32 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 public class AssetStorage {
 
     private final S3Client s3;
+    private final S3Presigner presigner;
     private final StorageProperties props;
 
-    public AssetStorage(S3Client s3, StorageProperties props) {
+    public AssetStorage(S3Client s3, S3Presigner presigner, StorageProperties props) {
         this.s3 = s3;
+        this.presigner = presigner;
         this.props = props;
+    }
+
+    /** A link anyone can GET for `valid`, without credentials (used by the render worker). */
+    public String presignGet(String key, Duration valid) {
+        return presigner.presignGetObject(GetObjectPresignRequest.builder()
+                .signatureDuration(valid)
+                .getObjectRequest(GetObjectRequest.builder().bucket(props.bucket()).key(key).build())
+                .build()).url().toString();
+    }
+
+    /**
+     * A link to upload one file with PUT for `valid`. The upload must send exactly this
+     * Content-Type header, because it is part of the signature.
+     */
+    public String presignPut(String key, String contentType, Duration valid) {
+        return presigner.presignPutObject(PutObjectPresignRequest.builder()
+                .signatureDuration(valid)
+                .putObjectRequest(PutObjectRequest.builder().bucket(props.bucket()).key(key).contentType(contentType).build())
+                .build()).url().toString();
     }
 
     public void put(String key, byte[] data, String contentType) {

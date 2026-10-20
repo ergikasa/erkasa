@@ -1,0 +1,86 @@
+/** One render job: download the files, render with Remotion, upload the MP4, report. */
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { renderVideo } from './render';
+import { RenderSpec, fpsOf, totalFrames } from './spec';
+
+export type Request = {
+  jobId: string;
+  projectId: string;
+  outputKey: string;
+  outputUrl: string;
+  spec: RenderSpec;
+};
+
+export type Result = {
+  jobId: string;
+  type: 'PROGRESS' | 'SUCCEEDED' | 'FAILED';
+  percent?: number;
+  durationSeconds?: number;
+  bytes?: number;
+  renderSeconds?: number;
+  error?: string;
+};
+
+/** Downloads every image / audio link into dir and points the spec at the local files. */
+async function downloadAssets(spec: RenderSpec, dir: string): Promise<RenderSpec> {
+  let n = 0;
+  const fetchTo = async (url: string | undefined | null): Promise<string | undefined> => {
+    if (!url) return undefined;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Download failed (HTTP ${res.status}) for ${url.split('?')[0]}`);
+    const ext = path.extname(new URL(url).pathname) || '.bin';
+    const name = `in-${n++}${ext}`;
+    fs.writeFileSync(path.join(dir, name), Buffer.from(await res.arrayBuffer()));
+    return name;
+  };
+  const scenes = [];
+  for (const s of spec.scenes) {
+    scenes.push({ ...s, image: await fetchTo(s.image), audio: await fetchTo(s.audio) });
+  }
+  return { ...spec, music: (await fetchTo(spec.music ?? undefined)) ?? null, scenes };
+}
+
+async function upload(url: string, file: string): Promise<void> {
+  const body = fs.readFileSync(file);
+  // Content-Type must be exactly what the backend signed the link with.
+  const res = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'video/mp4' }, body });
+  if (!res.ok) {
+    throw new Error(`Upload failed (HTTP ${res.status}): ${(await res.text()).slice(0, 200)}`);
+  }
+}
+
+export async function handle(req: Request, report: (r: Result) => void): Promise<void> {
+  const started = Date.now();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'erkasa-job-'));
+  try {
+    console.log(new Date().toISOString().slice(11, 19), `job ${req.jobId}: ${req.spec.scenes.length} scenes, ${req.spec.aspectRatio}`);
+    report({ jobId: req.jobId, type: 'PROGRESS', percent: 0 });
+    const local = await downloadAssets(req.spec, dir);
+
+    const out = path.join(dir, 'video.mp4');
+    let lastSent = -1;
+    await renderVideo(local, out, {
+      baseDir: dir,
+      browserExecutable: process.env.REMOTION_BROWSER_EXECUTABLE ?? null,
+      onProgress: (p) => {
+        // every 10 % is enough for a progress bar, and keeps the queue quiet
+        if (p >= lastSent + 10 || p === 100) {
+          lastSent = p;
+          report({ jobId: req.jobId, type: 'PROGRESS', percent: Math.min(99, p) });
+        }
+      },
+    });
+
+    await upload(req.outputUrl, out);
+    const bytes = fs.statSync(out).size;
+    const durationSeconds = +(totalFrames(local) / fpsOf(local)).toFixed(2);
+    const renderSeconds = +((Date.now() - started) / 1000).toFixed(1);
+    report({ jobId: req.jobId, type: 'SUCCEEDED', percent: 100, durationSeconds, bytes, renderSeconds });
+    console.log(new Date().toISOString().slice(11, 19), `job ${req.jobId}: done in ${renderSeconds} s (${(bytes / 1024 / 1024).toFixed(1)} MB)`);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+

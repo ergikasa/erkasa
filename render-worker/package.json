@@ -9,17 +9,20 @@
     "render": "tsx src/render-cli.ts",
     "sample": "tsx src/make-sample.ts",
     "typecheck": "tsc --noEmit",
-    "demo": "tsx src/make-demo.ts"
+    "demo": "tsx src/make-demo.ts",
+    "worker": "tsx src/worker.ts"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.537",
     "@remotion/cli": "4.0.537",
     "@remotion/renderer": "4.0.537",
+    "amqplib": "0.10.9",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "remotion": "4.0.537"
   },
   "devDependencies": {
+    "@types/amqplib": "0.10.8",
     "@types/node": "22.15.30",
     "@types/react": "19.3.0",
     "tsx": "4.23.15",
