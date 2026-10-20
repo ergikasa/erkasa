@@ -126,6 +126,8 @@ class RenderJobTests extends AbstractIntegrationTest {
         JsonNode spec = req.path("spec");
         assertThat(spec.path("aspectRatio").asString()).isEqualTo("PORTRAIT");
         assertThat(spec.path("fps").asInt()).isEqualTo(30);
+        // the mock script's mood; the worker turns it into a track from music/inspiring/
+        assertThat(spec.path("music").asString()).isEqualTo("mood:inspiring");
         assertThat(spec.path("scenes").size()).isEqualTo(scenes);
         JsonNode first = spec.path("scenes").get(0);
         assertThat(first.path("image").asString()).startsWith("http").contains("X-Amz-Signature");

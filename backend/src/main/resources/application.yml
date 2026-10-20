@@ -132,6 +132,8 @@ erkasa:
       # USD per 1,000 characters on your plan: https://elevenlabs.io/pricing/api
       usd-per-thousand-chars: 0.10
       timeout: 120s
+      # voices made at the same time; your plan's limit: Free 2, Starter 3, Creator 5
+      max-concurrent: ${ELEVENLABS_MAX_CONCURRENT:2}
     azure-speech:
       key: ${AZURE_SPEECH_KEY:}
       region: ${AZURE_SPEECH_REGION:westeurope}

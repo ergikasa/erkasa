@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,10 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  *
  * POST /v1/text-to-speech/{voice_id}/with-timestamps
  * Docs: https://elevenlabs.io/docs/api-reference/text-to-speech/convert-with-timestamps
+ *
+ * ElevenLabs limits how many requests run at the same time per account (Free: 2). The assets
+ * job asks for all scene voices in parallel, so at most maxConcurrent calls go out at once;
+ * the others wait their turn instead of failing with 429.
  */
 @Component
 @ConditionalOnProperty(prefix = "erkasa.providers", name = "tts", havingValue = "elevenlabs-azure")
@@ -44,10 +49,12 @@ public class ElevenLabsEngine implements VoiceEngine {
 
     private final ElevenLabsProperties props;
     private final RestClient client;
+    private final Semaphore slots;
 
     public ElevenLabsEngine(ElevenLabsProperties props, ProviderHttp http) {
         this.props = props;
         this.client = http.client(props.baseUrl(), props.timeout());
+        this.slots = new Semaphore(props.maxConcurrent(), true);
         if (!configured()) {
             log.warn("ELEVENLABS_API_KEY is not set: voices with provider=elevenlabs will fail");
         }
@@ -81,8 +88,8 @@ public class ElevenLabsEngine implements VoiceEngine {
 
         List<WordTiming> words = response.alignment() == null ? List.of()
                 : words(response.alignment().characters(),
-                response.alignment().character_start_times_seconds(),
-                response.alignment().character_end_times_seconds());
+                        response.alignment().character_start_times_seconds(),
+                        response.alignment().character_end_times_seconds());
 
         double lastWordEnd = words.isEmpty() ? 0 : words.get(words.size() - 1).endSeconds();
         double duration = Math.max(lastWordEnd, mp3Seconds(audio.length, props.outputFormat()));
@@ -95,6 +102,20 @@ public class ElevenLabsEngine implements VoiceEngine {
     }
 
     private Response send(String voiceId, Map<String, Object> body) {
+        try {
+            slots.acquire();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ProviderException(NAME, "INTERRUPTED", "Stopped while waiting for a free slot", false, e);
+        }
+        try {
+            return call(voiceId, body);
+        } finally {
+            slots.release();
+        }
+    }
+
+    private Response call(String voiceId, Map<String, Object> body) {
         try {
             return client.post()
                     .uri(b -> b.path("/v1/text-to-speech/{voice}/with-timestamps")

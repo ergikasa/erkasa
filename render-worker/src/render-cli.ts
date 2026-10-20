@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { renderVideo } from './render';
 import { RenderSpec, totalFrames, fpsOf } from './spec';
+import { resolveMusic } from './music';
 
 async function main() {
   const [specPath, outPath] = process.argv.slice(2);
@@ -17,7 +18,10 @@ async function main() {
     console.error('Usage: npm run render -- <spec.json> [video.mp4]');
     process.exit(1);
   }
-  const spec = JSON.parse(fs.readFileSync(specPath, 'utf8')) as RenderSpec;
+  const raw = JSON.parse(fs.readFileSync(specPath, 'utf8')) as RenderSpec;
+  // "mood:upbeat" -> a track from the music folder (MUSIC_DIR, default ./music)
+  const spec = { ...raw, music: resolveMusic(raw.music, specPath) };
+  if (raw.music) console.log(`Music: ${spec.music ?? 'none found for ' + raw.music}`);
   const output = outPath ?? path.join(path.dirname(specPath), 'video.mp4');
   const seconds = (totalFrames(spec) / fpsOf(spec)).toFixed(1);
   console.log(`Rendering ${spec.scenes.length} scenes, ${seconds} s, ${spec.aspectRatio} -> ${output}`);

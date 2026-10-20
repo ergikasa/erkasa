@@ -71,8 +71,9 @@ public class RenderSpecBuilder {
                     words,
                     scene.visual()));
         }
-        // Music comes in 5.4 (assets folder + ducking).
-        return new RenderMessages.Spec(project.getAspectRatio().name(), FPS, script.title(), null, MUSIC_VOLUME,
+        // The worker picks a track from its music/<mood>/ folder; no track = no music (5.4).
+        String music = script.musicMood() == null || script.musicMood().isBlank() ? null : "mood:" + script.musicMood();
+        return new RenderMessages.Spec(project.getAspectRatio().name(), FPS, script.title(), music, MUSIC_VOLUME,
                 true, scenes);
     }
 }

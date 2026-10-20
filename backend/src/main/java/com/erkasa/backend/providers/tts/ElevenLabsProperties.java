@@ -14,6 +14,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param outputFormat           mp3_44100_128: the duration is computed from this bitrate
  * @param usdPerThousandChars    what 1,000 characters cost on your plan
  * @param timeout                how long to wait for one voice-over
+ * @param maxConcurrent          how many voice-overs run at the same time. Your plan's limit:
+ *                               Free 2, Starter 3, Creator 5 (more = HTTP 429 concurrent_limit_exceeded)
  */
 @ConfigurationProperties(prefix = "erkasa.providers.elevenlabs")
 public record ElevenLabsProperties(String apiKey,
@@ -21,7 +23,8 @@ public record ElevenLabsProperties(String apiKey,
                                    String baseUrl,
                                    String outputFormat,
                                    BigDecimal usdPerThousandChars,
-                                   Duration timeout) {
+                                   Duration timeout,
+                                   Integer maxConcurrent) {
 
     public ElevenLabsProperties {
         model = blank(model) ? "eleven_v4" : model;
@@ -29,6 +32,7 @@ public record ElevenLabsProperties(String apiKey,
         outputFormat = blank(outputFormat) ? "mp3_44100_128" : outputFormat;
         usdPerThousandChars = usdPerThousandChars == null ? new BigDecimal("0.10") : usdPerThousandChars;
         timeout = timeout == null ? Duration.ofSeconds(120) : timeout;
+        maxConcurrent = maxConcurrent == null || maxConcurrent < 1 ? 2 : maxConcurrent;
     }
 
     private static boolean blank(String s) {

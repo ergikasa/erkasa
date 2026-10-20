@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { renderVideo } from './render';
 import { RenderSpec, fpsOf, totalFrames } from './spec';
+import { resolveMusic } from './music';
 
 export type Request = {
   jobId: string;
@@ -24,10 +25,15 @@ export type Result = {
 };
 
 /** Downloads every image / audio link into dir and points the spec at the local files. */
+function log(...args: unknown[]) {
+  console.log(new Date().toISOString().slice(11, 19), ...args);
+}
+
 async function downloadAssets(spec: RenderSpec, dir: string): Promise<RenderSpec> {
   let n = 0;
   const fetchTo = async (url: string | undefined | null): Promise<string | undefined> => {
     if (!url) return undefined;
+    if (!/^https?:\/\//i.test(url)) return url; // a local file (e.g. music from the music folder)
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Download failed (HTTP ${res.status}) for ${url.split('?')[0]}`);
     const ext = path.extname(new URL(url).pathname) || '.bin';
@@ -55,9 +61,11 @@ export async function handle(req: Request, report: (r: Result) => void): Promise
   const started = Date.now();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'erkasa-job-'));
   try {
-    console.log(new Date().toISOString().slice(11, 19), `job ${req.jobId}: ${req.spec.scenes.length} scenes, ${req.spec.aspectRatio}`);
+    log(`job ${req.jobId}: ${req.spec.scenes.length} scenes, ${req.spec.aspectRatio}`);
     report({ jobId: req.jobId, type: 'PROGRESS', percent: 0 });
-    const local = await downloadAssets(req.spec, dir);
+    const music = resolveMusic(req.spec.music, req.jobId);
+    if (req.spec.music) log(`job ${req.jobId}: music ${music ? path.basename(music) : 'none found for ' + req.spec.music}`);
+    const local = await downloadAssets({ ...req.spec, music }, dir);
 
     const out = path.join(dir, 'video.mp4');
     let lastSent = -1;
@@ -78,7 +86,7 @@ export async function handle(req: Request, report: (r: Result) => void): Promise
     const durationSeconds = +(totalFrames(local) / fpsOf(local)).toFixed(2);
     const renderSeconds = +((Date.now() - started) / 1000).toFixed(1);
     report({ jobId: req.jobId, type: 'SUCCEEDED', percent: 100, durationSeconds, bytes, renderSeconds });
-    console.log(new Date().toISOString().slice(11, 19), `job ${req.jobId}: done in ${renderSeconds} s (${(bytes / 1024 / 1024).toFixed(1)} MB)`);
+    log(`job ${req.jobId}: done in ${renderSeconds} s (${(bytes / 1024 / 1024).toFixed(1)} MB)`);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

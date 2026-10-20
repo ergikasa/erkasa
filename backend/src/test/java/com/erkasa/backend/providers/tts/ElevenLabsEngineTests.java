@@ -12,6 +12,10 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterEach;
@@ -35,6 +39,9 @@ class ElevenLabsEngineTests {
     private final AtomicReference<String> lastKey = new AtomicReference<>();
     private volatile int status = 200;
     private volatile String responseJson;
+    private volatile long delayMillis = 0;
+    private final AtomicInteger running = new AtomicInteger();
+    private final AtomicInteger maxRunning = new AtomicInteger();
 
     /** 16,000 bytes of "MP3" at 128 kbit/s = exactly 1.0 second. */
     private final byte[] audio = new byte[16_000];
@@ -47,6 +54,14 @@ class ElevenLabsEngineTests {
             lastQuery.set(exchange.getRequestURI().getQuery());
             lastKey.set(exchange.getRequestHeaders().getFirst("xi-api-key"));
             lastBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            maxRunning.accumulateAndGet(running.incrementAndGet(), Math::max);
+            try {
+                Thread.sleep(delayMillis);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                running.decrementAndGet();
+            }
             byte[] bytes = responseJson.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(status, bytes.length);
@@ -54,6 +69,7 @@ class ElevenLabsEngineTests {
                 out.write(bytes);
             }
         });
+        server.setExecutor(Executors.newCachedThreadPool()); // like the real API: many calls at once
         server.start();
         responseJson = answer("Hi, there", 0.0, 0.08);
     }
@@ -64,9 +80,13 @@ class ElevenLabsEngineTests {
     }
 
     private ElevenLabsEngine engine(String key) {
+        return engine(key, 2);
+    }
+
+    private ElevenLabsEngine engine(String key, int maxConcurrent) {
         String url = "http://127.0.0.1:" + server.getAddress().getPort();
         ElevenLabsProperties props = new ElevenLabsProperties(key, "eleven_v4", url, "mp3_44100_128",
-                new BigDecimal("0.10"), Duration.ofSeconds(5));
+                new BigDecimal("0.10"), Duration.ofSeconds(5), maxConcurrent);
         return new ElevenLabsEngine(props, new ProviderHttp());
     }
 
@@ -185,5 +205,25 @@ class ElevenLabsEngineTests {
         assertThatThrownBy(() -> engine.synthesize("Hello", Language.EN, VOICE))
                 .isInstanceOfSatisfying(ProviderException.class,
                         e -> assertThat(e.getCode()).isEqualTo("NOT_CONFIGURED"));
+    }
+
+    @Test
+    void neverSendsMoreCallsAtOnceThanThePlanAllows() throws Exception {
+        delayMillis = 200;
+        ElevenLabsEngine engine = engine("k", 2);
+        ExecutorService pool = Executors.newFixedThreadPool(5);
+        try {
+            List<Future<SpeechResult>> voices = new ArrayList<>();
+            for (int i = 0; i < 5; i++) {
+                voices.add(pool.submit(() -> engine.synthesize("Hi, there", Language.EN, VOICE)));
+            }
+            for (Future<SpeechResult> v : voices) {
+                assertThat(v.get().audio()).hasSize(audio.length);
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+        // 5 scenes asked at once, but ElevenLabs saw at most 2 at a time (Free plan limit)
+        assertThat(maxRunning.get()).isEqualTo(2);
     }
 }
