@@ -1,1 +1,3 @@
-samples/*.mp4
+# rendered videos (bench, demo, samples) are never committed: they are big
+samples/**/*.mp4
+*.mp4
