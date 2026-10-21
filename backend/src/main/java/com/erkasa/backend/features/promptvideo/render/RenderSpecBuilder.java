@@ -29,7 +29,8 @@ public class RenderSpecBuilder {
 
     static final Duration LINK_VALID = Duration.ofHours(3);
     static final int FPS = 30;
-    static final double MUSIC_VOLUME = 0.12;
+    /** Music under the voice (5.6: half of the 5.4 level); a little louder in pauses (worker). */
+    static final double MUSIC_VOLUME = 0.06;
 
     private final AssetStorage storage;
     private final ObjectMapper json;
@@ -69,7 +70,8 @@ public class RenderSpecBuilder {
                     meta.path("durationSeconds").asDouble(),
                     scene.onScreenText() == null ? "" : scene.onScreenText(),
                     words,
-                    scene.visual()));
+                    scene.visual(),
+                    scene.sfx()));
         }
         // The worker picks a track from its music/<mood>/ folder; no track = no music (5.4).
         String music = script.musicMood() == null || script.musicMood().isBlank() ? null : "mood:" + script.musicMood();

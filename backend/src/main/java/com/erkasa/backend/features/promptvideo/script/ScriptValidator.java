@@ -47,6 +47,7 @@ public final class ScriptValidator {
                 problems.add("Scene " + n + " has no imagePrompt.");
             }
             problems.addAll(VisualRules.check(s.visual(), n));
+            problems.addAll(soundProblems(s, n));
             if (countWords(s.onScreenText()) > MAX_ON_SCREEN_WORDS) {
                 problems.add("Scene " + n + " onScreenText is too long; use at most "
                         + MAX_ON_SCREEN_WORDS + " words.");
@@ -62,6 +63,25 @@ public final class ScriptValidator {
             problems.add("The narration is too short: about " + Math.round(estimatedSeconds)
                     + " seconds for a " + targetSeconds + "-second video. Use about "
                     + targetWords(targetSeconds) + " words in total.");
+        }
+        return problems;
+    }
+
+    /**
+     * Sound effects: known keys and at most MAX_PER_SCENE. An onWord that is not in the
+     * narration is not an error (no paid retry for that): the worker then plays it at the start.
+     */
+    static List<String> soundProblems(VideoScript.Scene s, int n) {
+        List<String> problems = new java.util.ArrayList<>();
+        if (s.sfx().size() > SoundEffects.MAX_PER_SCENE) {
+            problems.add("Scene " + n + " has " + s.sfx().size() + " sound effects; use at most "
+                    + SoundEffects.MAX_PER_SCENE + ".");
+        }
+        for (SoundCue cue : s.sfx()) {
+            if (!SoundEffects.CATALOG.containsKey(cue.sound())) {
+                problems.add("Scene " + n + " uses an unknown sound effect \"" + cue.sound() + "\"; use one of "
+                        + SoundEffects.SOUNDS + ".");
+            }
         }
         return problems;
     }

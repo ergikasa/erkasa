@@ -128,12 +128,17 @@ class RenderJobTests extends AbstractIntegrationTest {
         assertThat(spec.path("fps").asInt()).isEqualTo(30);
         // the mock script's mood; the worker turns it into a track from music/inspiring/
         assertThat(spec.path("music").asString()).isEqualTo("mood:inspiring");
+        // 5.6: music at half the 5.4 level, and the LLM's sound effects go to the worker
+        assertThat(spec.path("musicVolume").asDouble()).isEqualTo(0.06);
         assertThat(spec.path("scenes").size()).isEqualTo(scenes);
         JsonNode first = spec.path("scenes").get(0);
         assertThat(first.path("image").asString()).startsWith("http").contains("X-Amz-Signature");
         assertThat(first.path("audio").asString()).startsWith("http").contains("X-Amz-Signature");
         assertThat(first.path("audioSeconds").asDouble()).isPositive();
         assertThat(first.path("words").size()).isPositive();
+        assertThat(first.path("sfx").get(0).path("sound").asString()).isEqualTo("ding");
+        assertThat(first.path("sfx").get(0).path("onWord").asString()).isEqualTo("mock");
+        assertThat(spec.path("scenes").get(1).path("sfx").size()).isZero();
         assertThat(req.path("outputKey").asString()).isEqualTo("projects/" + id + "/" + jobId + "/video.mp4");
 
         // the voice link really works without credentials

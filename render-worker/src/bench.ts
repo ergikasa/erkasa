@@ -12,6 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { Renderer } from './render';
+import { withSoundEffects } from './sfx';
 import { RenderSpec, fpsOf, totalFrames } from './spec';
 
 const dir = path.join('samples', 'demo');
@@ -32,7 +33,8 @@ async function main() {
   console.log(`Renderer ready in ${((Date.now() - t) / 1000).toFixed(1)} s, ${renderer.concurrency} tabs, gl=${renderer.gl}`);
   try {
     for (const r of runs) {
-      const spec = JSON.parse(fs.readFileSync(path.join(dir, r.spec), 'utf8')) as RenderSpec;
+      const raw = JSON.parse(fs.readFileSync(path.join(dir, r.spec), 'utf8')) as RenderSpec;
+      const { spec } = withSoundEffects(raw, r.spec);
       const video = (totalFrames(spec) / fpsOf(spec)).toFixed(1);
       const out = path.join(dir, r.out);
       t = Date.now();

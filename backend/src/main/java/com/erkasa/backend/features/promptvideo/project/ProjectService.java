@@ -317,7 +317,8 @@ public class ProjectService {
                         hasText(newNarration) ? newNarration.strip() : old.narration(),
                         old.onScreenText(),
                         hasText(newImagePrompt) ? newImagePrompt.strip() : old.imagePrompt(),
-                        old.visual()));
+                        old.visual(),
+                        old.sfx()));
                 VideoScript changed = new VideoScript(script.title(), script.musicMood(), scenes);
                 List<String> problems = ScriptValidator.validate(changed, project.getDurationSeconds());
                 if (!problems.isEmpty()) {

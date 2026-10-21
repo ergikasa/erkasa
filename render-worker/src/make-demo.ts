@@ -9,11 +9,11 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { AspectRatio, RenderSpec, SpecScene, Visual, Word } from './spec';
+import { AspectRatio, RenderSpec, SoundCue, SpecScene, Visual, Word } from './spec';
 
 const WORDS_PER_SECOND = 2.6;
 
-function scene(narration: string, visual: Visual): SpecScene {
+function scene(narration: string, visual: Visual, sfx: SoundCue[] = []): SpecScene {
   const parts = narration.split(/\s+/).filter(Boolean);
   const words: Word[] = parts.map((word, i) => ({
     word,
@@ -21,7 +21,7 @@ function scene(narration: string, visual: Visual): SpecScene {
     endSeconds: +(0.2 + (i + 0.85) / WORDS_PER_SECOND).toFixed(2),
   }));
   const audioSeconds = +(words[words.length - 1].endSeconds + 0.2).toFixed(2);
-  return { audioSeconds, words, visual };
+  return { audioSeconds, words, visual, sfx };
 }
 
 const aspect = (process.argv[2] as AspectRatio) || 'PORTRAIT';
@@ -59,7 +59,7 @@ const spec: RenderSpec = {
       type: 'title',
       title: 'CI/CD',
       subtitle: 'Explained in 30 seconds',
-    }),
+    }, [{ sound: 'impact', onWord: '' }]),
     scene('Every push goes through four stages. Code, build, test, and deploy.', {
       type: 'flow',
       steps: ['Code', 'Build', 'Test', 'Deploy'],
@@ -73,7 +73,7 @@ const spec: RenderSpec = {
       value: 200,
       suffix: 'x',
       label: 'more deployments',
-    }),
+    }, [{ sound: 'ding', onWord: '200' }]),
     scene('Without it, releases are manual and scary. With it, they are automatic and boring, in a good way.', {
       type: 'compare',
       leftTitle: 'Without CI/CD',
@@ -96,12 +96,12 @@ const spec: RenderSpec = {
         '      - run: npm test',
         '      - run: npm run deploy',
       ].join('\n'),
-    }),
+    }, [{ sound: 'typing', onWord: 'YAML.' }]),
     scene('Follow for more dev explained in a minute.', {
       type: 'cta',
       text: 'Follow for more',
       handle: '@erkasa',
-    }),
+    }, [{ sound: 'success', onWord: 'Follow' }]),
   ],
 };
 

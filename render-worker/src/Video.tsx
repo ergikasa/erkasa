@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { AbsoluteFill, Audio, Series, interpolate, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Audio, Sequence, Series, interpolate, useVideoConfig } from 'remotion';
 import { Scene } from './Scene';
 import { src } from './media';
 import { RenderSpec, fpsOf, sceneFrames } from './spec';
@@ -16,7 +16,12 @@ export const Video: React.FC<RenderSpec> = (spec) => {
           </Series.Sequence>
         ))}
       </Series>
-      {spec.music ? <Music spec={spec} file={spec.music} volume={spec.musicVolume ?? 0.12} /> : null}
+      {spec.music ? <Music spec={spec} file={spec.music} volume={spec.musicVolume ?? 0.06} /> : null}
+      {(spec.effects ?? []).map((e, i) => (
+        <Sequence key={`sfx-${i}`} from={e.frame} name={`sfx ${i + 1}`} layout="none">
+          <Audio src={src(e.file)} volume={e.volume} />
+        </Sequence>
+      ))}
     </AbsoluteFill>
   );
 };

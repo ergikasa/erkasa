@@ -25,11 +25,12 @@ public final class ScriptSchema {
         sceneProps.put("onScreenText", Map.of("type", "string"));
         sceneProps.put("imagePrompt", Map.of("type", "string"));
         sceneProps.put("visual", visual());
+        sceneProps.put("sfx", sfx());
 
         Map<String, Object> scene = new LinkedHashMap<>();
         scene.put("type", "object");
         scene.put("properties", sceneProps);
-        scene.put("required", List.of("narration", "onScreenText", "imagePrompt", "visual"));
+        scene.put("required", List.of("narration", "onScreenText", "imagePrompt", "visual", "sfx"));
         scene.put("additionalProperties", false);
 
         Map<String, Object> props = new LinkedHashMap<>();
@@ -43,6 +44,19 @@ public final class ScriptSchema {
         root.put("required", List.of("title", "musicMood", "scenes"));
         root.put("additionalProperties", false);
         return root;
+    }
+
+    /** 0-2 sound effects per scene (the limit is checked by ScriptValidator). */
+    private static Map<String, Object> sfx() {
+        Map<String, Object> props = new LinkedHashMap<>();
+        props.put("sound", Map.of("type", "string", "enum", SoundEffects.SOUNDS));
+        props.put("onWord", Map.of("type", "string"));
+        Map<String, Object> cue = new LinkedHashMap<>();
+        cue.put("type", "object");
+        cue.put("properties", props);
+        cue.put("required", List.of("sound", "onWord"));
+        cue.put("additionalProperties", false);
+        return Map.of("type", "array", "items", cue);
     }
 
     /** The flat visual object (see {@link Visual}): every field present, unused ones empty. */

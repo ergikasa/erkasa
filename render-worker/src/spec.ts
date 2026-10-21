@@ -29,6 +29,12 @@ export type Visual =
   | { type: 'code'; language?: string; code: string }
   | { type: 'cta'; text: string; handle?: string };
 
+/** A sound effect the LLM chose: plays on that word of the narration ("" = scene start). */
+export type SoundCue = { sound: string; onWord?: string };
+
+/** A sound effect ready to play: the worker resolved the file and the frame (see sfx.ts). */
+export type Effect = { file: string; frame: number; volume: number };
+
 export type SpecScene = {
   /** the AI image; only needed when visual is 'image' (or missing) */
   image?: string;
@@ -42,6 +48,8 @@ export type SpecScene = {
   onScreenText?: string;
   /** word timings, from the start of THIS scene's audio */
   words: Word[];
+  /** 0-2 sound effects chosen by the LLM (5.6) */
+  sfx?: SoundCue[];
 };
 
 export type RenderSpec = {
@@ -50,8 +58,12 @@ export type RenderSpec = {
   title?: string;
   /** background music file; null/absent = no music */
   music?: string | null;
-  /** 0..1, default 0.12: under the voice, never over it */
+  /** 0..1, default 0.06: under the voice, never over it */
   musicVolume?: number;
+  /** automatic whooshes between scenes and pops when items appear, default true (5.6) */
+  autoSfx?: boolean;
+  /** filled in by the worker from the sfx/ library: what plays when (5.6) */
+  effects?: Effect[];
   /** word-by-word subtitles, default true */
   captions?: boolean;
   scenes: SpecScene[];

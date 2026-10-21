@@ -55,9 +55,22 @@ public final class ScriptPrompts {
                 every step / item / row, in the same order and with the same first word.
                 Write visual texts in %s. For non-image scenes "imagePrompt" is an empty string.
                 - "musicMood": the background music that fits the video best.
+                - "sfx": 0 to 2 sound effects per scene that underline what the narration says. \
+                "onWord" is ONE word copied from that scene's narration where the sound plays \
+                ("" = when the scene starts). Many scenes need none; never decorate every sentence. \
+                Whooshes between scenes and pops when items appear are added automatically, so do not add those. \
+                Sounds: %s
                 - Be factually accurate. If you are not sure about a fact, keep the statement general.
                 """.formatted(language, seconds, ScriptValidator.targetWords(seconds),
-                ScriptValidator.maxWords(seconds), minScenes, maxScenes, framing, language);
+                ScriptValidator.maxWords(seconds), minScenes, maxScenes, framing, language, soundList());
+    }
+
+    /** "ding (a fact, a correct answer, an idea); cash (money earned...); ..." */
+    static String soundList() {
+        StringBuilder sb = new StringBuilder();
+        SoundEffects.CATALOG.forEach((key, use) -> sb.append(sb.isEmpty() ? "" : "; ").append(key)
+                .append(" (").append(use).append(')'));
+        return sb.toString();
     }
 
     public static String user(ScriptRequest request, List<String> problemsToFix) {

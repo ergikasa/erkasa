@@ -80,7 +80,10 @@ public class MockLlmProvider implements LlmProvider {
             json.append("{\"narration\":\"").append(escape(narration(n, wordsPerScene))).append("\",")
                     .append("\"onScreenText\":\"Scene ").append(n).append("\",")
                     .append("\"imagePrompt\":\"").append(escape("Mock scene " + n + " illustrating: " + idea))
-                    .append("\"}");
+                    .append("\",")
+                    // one sound effect in the first scene, like the real LLM may choose (5.6)
+                    .append("\"sfx\":").append(n == 1 ? "[{\"sound\":\"ding\",\"onWord\":\"mock\"}]" : "[]")
+                    .append("}");
         }
         return json.append("]}").toString();
     }

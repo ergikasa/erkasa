@@ -70,7 +70,13 @@
         "type": "title",
         "title": "CI/CD",
         "subtitle": "Explained in 30 seconds"
-      }
+      },
+      "sfx": [
+        {
+          "sound": "impact",
+          "onWord": ""
+        }
+      ]
     },
     {
       "audioSeconds": 4.57,
@@ -139,7 +145,8 @@
           "Test",
           "Deploy"
         ]
-      }
+      },
+      "sfx": []
     },
     {
       "audioSeconds": 5.34,
@@ -217,7 +224,8 @@
           "Every change is checked",
           "Nobody deploys by hand"
         ]
-      }
+      },
+      "sfx": []
     },
     {
       "audioSeconds": 4.19,
@@ -278,7 +286,13 @@
         "value": 200,
         "suffix": "x",
         "label": "more deployments"
-      }
+      },
+      "sfx": [
+        {
+          "sound": "ding",
+          "onWord": "200"
+        }
+      ]
     },
     {
       "audioSeconds": 7.27,
@@ -386,7 +400,8 @@
           "Automatic releases",
           "Bugs found in minutes"
         ]
-      }
+      },
+      "sfx": []
     },
     {
       "audioSeconds": 5.34,
@@ -461,7 +476,13 @@
         "type": "code",
         "language": "github-actions.yml",
         "code": "# runs on every push\non: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm ci\n      - run: npm test\n      - run: npm run deploy"
-      }
+      },
+      "sfx": [
+        {
+          "sound": "typing",
+          "onWord": "YAML."
+        }
+      ]
     },
     {
       "audioSeconds": 3.42,
@@ -511,7 +532,13 @@
         "type": "cta",
         "text": "Follow for more",
         "handle": "@erkasa"
-      }
+      },
+      "sfx": [
+        {
+          "sound": "success",
+          "onWord": "Follow"
+        }
+      ]
     }
   ]
 }

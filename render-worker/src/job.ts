@@ -5,6 +5,7 @@ import path from 'node:path';
 import { Renderer } from './render';
 import { RenderSpec, fpsOf, totalFrames } from './spec';
 import { resolveMusic } from './music';
+import { withSoundEffects } from './sfx';
 
 export type Request = {
   jobId: string;
@@ -68,7 +69,9 @@ export async function handle(req: Request, report: (r: Result) => void, renderer
     report({ jobId: req.jobId, type: 'PROGRESS', percent: 0 });
     const music = resolveMusic(req.spec.music, req.jobId);
     if (req.spec.music) log(`job ${req.jobId}: music ${music ? path.basename(music) : 'none found for ' + req.spec.music}`);
-    const local = await downloadAssets({ ...req.spec, music }, dir);
+    const downloaded = await downloadAssets({ ...req.spec, music }, dir);
+    const { spec: local, missing } = withSoundEffects(downloaded, req.jobId);
+    log(`job ${req.jobId}: ${local.effects?.length ?? 0} sound effects` + (missing.length ? ` (no files for: ${missing.join(', ')}; run npm run make-sfx)` : ''));
 
     const out = path.join(dir, 'video.mp4');
     let lastSent = -1;

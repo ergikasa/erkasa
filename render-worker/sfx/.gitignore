@@ -1,0 +1,5 @@
+# The sounds are not in git (size, and downloaded ones have their own license).
+# `npm run make-sfx` writes the free starter pack again on any machine.
+*
+!.gitignore
+!README.md

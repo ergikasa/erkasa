@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "demo": "tsx src/make-demo.ts",
     "worker": "tsx src/worker.ts",
-    "bench": "tsx src/bench.ts"
+    "bench": "tsx src/bench.ts",
+    "make-sfx": "tsx src/make-sfx.ts"
   },
   "dependencies": {
     "@fontsource/inter": "5.3.0",

@@ -170,20 +170,25 @@ export async function renderVideo(
 /** Copies every local image / audio / music file into publicDir and points the spec at the copies. */
 function copyLocalFiles(spec: RenderSpec, baseDir: string, publicDir: string, prefix: string): RenderSpec {
   let n = 0;
+  const copied = new Map<string, string>(); // a pop used 12 times is copied once
   const copy = (file: string | null | undefined): string | null => {
     if (!file) return null;
     if (/^https?:\/\//i.test(file)) return file;
     const from = path.isAbsolute(file) ? file : path.join(baseDir, file);
+    const done = copied.get(from);
+    if (done) return done;
     if (!fs.existsSync(from)) {
       throw new Error(`File not found: ${from}`);
     }
     const name = `asset-${n++}${path.extname(from)}`;
     fs.copyFileSync(from, path.join(publicDir, name));
+    copied.set(from, `${prefix}/${name}`);
     return `${prefix}/${name}`;
   };
   return {
     ...spec,
     music: copy(spec.music),
+    effects: (spec.effects ?? []).map((e) => ({ ...e, file: copy(e.file)! })),
     scenes: spec.scenes.map((s) => ({
       ...s,
       image: copy(s.image) ?? undefined,

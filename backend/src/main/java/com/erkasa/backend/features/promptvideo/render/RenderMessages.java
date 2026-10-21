@@ -3,6 +3,7 @@ package com.erkasa.backend.features.promptvideo.render;
 import java.util.List;
 import java.util.UUID;
 
+import com.erkasa.backend.features.promptvideo.script.SoundCue;
 import com.erkasa.backend.features.promptvideo.script.Visual;
 import com.erkasa.backend.providers.tts.WordTiming;
 
@@ -24,7 +25,7 @@ public final class RenderMessages {
     }
 
     public record Scene(String image, String audio, double audioSeconds, String onScreenText,
-                        List<WordTiming> words, Visual visual) {
+                        List<WordTiming> words, Visual visual, List<SoundCue> sfx) {
     }
 
     /**
