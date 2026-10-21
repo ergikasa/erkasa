@@ -37,6 +37,8 @@ export class ApiError extends Error {
     message: string,
     /** field -> message, for VALIDATION_FAILED */
     readonly fields: Record<string, string> = {},
+    /** what is wrong with a script, for INVALID_SCRIPT (422) */
+    readonly problems: string[] = [],
   ) {
     super(message);
     this.name = 'ApiError';
@@ -125,8 +127,14 @@ async function read<T>(res: Response): Promise<T> {
   const text = await res.text();
   const data = text ? safeJson(text) : undefined;
   if (!res.ok) {
-    const body = (data ?? {}) as { code?: string; detail?: string; errors?: Record<string, string> };
-    throw new ApiError(res.status, body.code ?? `HTTP_${res.status}`, body.detail ?? res.statusText, body.errors ?? {});
+    const body = (data ?? {}) as { code?: string; detail?: string; errors?: Record<string, string>; problems?: string[] };
+    throw new ApiError(
+      res.status,
+      body.code ?? `HTTP_${res.status}`,
+      body.detail ?? res.statusText,
+      body.errors ?? {},
+      Array.isArray(body.problems) ? body.problems : [],
+    );
   }
   return data as T;
 }

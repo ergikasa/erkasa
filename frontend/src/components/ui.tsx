@@ -121,3 +121,73 @@ const EyeOff = () => (
     <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
   </svg>
 );
+
+type AreaProps = Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'id'> & {
+  label: string;
+  error?: string;
+  hint?: React.ReactNode;
+  mono?: boolean;
+};
+
+/** A textarea that grows with its text (no inner scrolling on phones). */
+export const TextArea: React.FC<AreaProps> = ({ label, error, hint, mono, className = '', rows = 2, ...rest }) => {
+  const id = useId();
+  return (
+    <div className={className}>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-muted">
+        {label}
+      </label>
+      <textarea
+        id={id}
+        rows={rows}
+        {...rest}
+        aria-invalid={error ? true : undefined}
+        className={`block w-full resize-none rounded-xl border bg-surface px-4 py-3 leading-relaxed text-text placeholder:text-muted/60 transition [field-sizing:content] focus:border-accent focus:outline-none ${mono ? 'font-mono text-[14px]' : ''} ${error ? 'border-danger' : 'border-line'}`}
+      />
+      {error ? <p className="mt-1.5 text-sm text-danger">{error}</p> : hint ? <div className="mt-1.5 text-sm text-muted">{hint}</div> : null}
+    </div>
+  );
+};
+
+/** A row of big choice buttons (segmented control). */
+export function Choice<T extends string | number>({
+  label,
+  value,
+  options,
+  onChange,
+  columns,
+}: {
+  label: string;
+  value: T;
+  options: { value: T; label: React.ReactNode; hint?: string }[];
+  onChange: (v: T) => void;
+  columns?: string;
+}) {
+  return (
+    <fieldset>
+      <legend className="mb-1.5 text-sm font-medium text-muted">{label}</legend>
+      <div className={`grid gap-2 ${columns ?? 'grid-cols-3'}`}>
+        {options.map((o) => {
+          const active = o.value === value;
+          return (
+            <button
+              key={String(o.value)}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => onChange(o.value)}
+              className={`flex min-h-12 flex-col items-center justify-center rounded-xl border px-2 py-2 text-center transition ${active ? 'border-accent bg-accent/10 text-text' : 'border-line bg-surface text-muted hover:text-text'}`}
+            >
+              <span className="text-[15px] font-semibold">{o.label}</span>
+              {o.hint ? <span className="mt-0.5 text-xs text-muted">{o.hint}</span> : null}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+export const Spinner: React.FC<{ className?: string }> = ({ className = 'size-8' }) => (
+  <span className={`inline-block animate-spin rounded-full border-2 border-line border-t-accent ${className}`} aria-hidden />
+);

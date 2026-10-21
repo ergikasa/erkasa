@@ -31,16 +31,6 @@ export const HomePage: React.FC = () => {
   );
 };
 
-export const NewVideoPage: React.FC = () => {
-  const { t } = useTranslation();
-  return (
-    <section>
-      <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t('newVideo.title')}</h1>
-      <p className="mt-4 text-muted">{t('newVideo.soon')}</p>
-    </section>
-  );
-};
-
 export const AccountPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const auth = useAuth();
