@@ -10,7 +10,8 @@
     "sample": "tsx src/make-sample.ts",
     "typecheck": "tsc --noEmit",
     "demo": "tsx src/make-demo.ts",
-    "worker": "tsx src/worker.ts"
+    "worker": "tsx src/worker.ts",
+    "bench": "tsx src/bench.ts"
   },
   "dependencies": {
     "@fontsource/inter": "5.3.0",

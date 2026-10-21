@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { renderVideo } from './render';
+import { Renderer } from './render';
 import { RenderSpec, fpsOf, totalFrames } from './spec';
 import { resolveMusic } from './music';
 
@@ -41,10 +41,13 @@ async function downloadAssets(spec: RenderSpec, dir: string): Promise<RenderSpec
     fs.writeFileSync(path.join(dir, name), Buffer.from(await res.arrayBuffer()));
     return name;
   };
-  const scenes = [];
-  for (const s of spec.scenes) {
-    scenes.push({ ...s, image: await fetchTo(s.image), audio: await fetchTo(s.audio) });
-  }
+  // all files at the same time: a 10-scene video no longer waits for 20 downloads in a row
+  const scenes = await Promise.all(
+    spec.scenes.map(async (s) => {
+      const [image, audio] = await Promise.all([fetchTo(s.image), fetchTo(s.audio)]);
+      return { ...s, image, audio };
+    }),
+  );
   return { ...spec, music: (await fetchTo(spec.music ?? undefined)) ?? null, scenes };
 }
 
@@ -57,7 +60,7 @@ async function upload(url: string, file: string): Promise<void> {
   }
 }
 
-export async function handle(req: Request, report: (r: Result) => void): Promise<void> {
+export async function handle(req: Request, report: (r: Result) => void, renderer: Renderer): Promise<void> {
   const started = Date.now();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'erkasa-job-'));
   try {
@@ -69,9 +72,8 @@ export async function handle(req: Request, report: (r: Result) => void): Promise
 
     const out = path.join(dir, 'video.mp4');
     let lastSent = -1;
-    await renderVideo(local, out, {
+    await renderer.render(local, out, {
       baseDir: dir,
-      browserExecutable: process.env.REMOTION_BROWSER_EXECUTABLE ?? null,
       onProgress: (p) => {
         // every 10 % is enough for a progress bar, and keeps the queue quiet
         if (p >= lastSent + 10 || p === 100) {

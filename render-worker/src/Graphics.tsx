@@ -67,24 +67,54 @@ const panelStyle: React.CSSProperties = {
   boxShadow: '0 20px 60px rgba(0,0,0,0.45)',
 };
 
-/** Slowly moving gradient + grid, so graphic scenes never look like a static slide. */
+/**
+ * Slowly moving glows + grid, so graphic scenes never look like a static slide.
+ *
+ * Speed (5.5): the gradients are drawn once and only MOVED with transform each frame. Changing
+ * the gradient itself every frame made Chrome repaint the whole screen (2x slower renders and
+ * bigger files).
+ */
 const Backdrop: React.FC = () => {
   const frame = useCurrentFrame();
-  const a = (frame * 0.6) % 360;
+  const { width, height } = useVideoConfig();
+  const t = ((frame * 0.6) % 360) * (Math.PI / 180);
+  const glow = (color: string, size: number): React.CSSProperties => ({
+    position: 'absolute',
+    width: size,
+    height: size,
+    left: -size / 2,
+    top: -size / 2,
+    borderRadius: '50%',
+    background: `radial-gradient(circle, ${color}, transparent 70%)`,
+    willChange: 'transform',
+  });
+  const big = Math.max(width, height) * 0.9;
   return (
-    <AbsoluteFill style={{ background: `linear-gradient(160deg, ${theme.bg} 0%, ${theme.bg2} 100%)` }}>
-      <AbsoluteFill
+    <AbsoluteFill style={{ background: `linear-gradient(160deg, ${theme.bg} 0%, ${theme.bg2} 100%)`, overflow: 'hidden' }}>
+      <div
         style={{
-          background: `radial-gradient(circle at ${50 + 30 * Math.cos((a * Math.PI) / 180)}% ${30 + 20 * Math.sin((a * Math.PI) / 180)}%, rgba(34,211,238,0.18), transparent 45%),
-                       radial-gradient(circle at ${50 - 30 * Math.cos((a * Math.PI) / 180)}% ${75 - 15 * Math.sin((a * Math.PI) / 180)}%, rgba(167,139,250,0.18), transparent 50%)`,
+          ...glow('rgba(34,211,238,0.18)', big),
+          transform: `translate(${width * (0.5 + 0.3 * Math.cos(t))}px, ${height * (0.3 + 0.2 * Math.sin(t))}px)`,
         }}
       />
-      <AbsoluteFill
+      <div
         style={{
+          ...glow('rgba(167,139,250,0.18)', big * 1.1),
+          transform: `translate(${width * (0.5 - 0.3 * Math.cos(t))}px, ${height * (0.75 - 0.15 * Math.sin(t))}px)`,
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: -60,
+          width,
+          height: height + 60,
           backgroundImage:
             'linear-gradient(rgba(148,163,184,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.07) 1px, transparent 1px)',
           backgroundSize: '60px 60px',
-          backgroundPosition: `0 ${frame * 0.5}px`,
+          transform: `translateY(${(frame * 0.5) % 60}px)`,
+          willChange: 'transform',
         }}
       />
     </AbsoluteFill>

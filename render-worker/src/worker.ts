@@ -9,6 +9,8 @@
  *   RABBITMQ_USER / RABBITMQ_PASSWORD   default erkasa / erkasa
  *   RABBITMQ_HOST / RABBITMQ_PORT       default localhost / 5673 (the port docker compose maps)
  *   REMOTION_BROWSER_EXECUTABLE         optional: use an installed Chrome
+ *   RENDER_CONCURRENCY                  optional: browser tabs per render (default: CPU cores, max 8)
+ *   RENDER_GL                           optional: angle = use the graphics card (often faster on Windows)
  *
  * One video at a time (prefetch 1). A request is acknowledged only after the result is sent,
  * so if the worker is stopped mid-render, RabbitMQ gives the request to the next worker start.
@@ -17,6 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import amqp from 'amqplib';
 import { Request, Result, handle } from './job';
+import { Renderer } from './render';
 
 /**
  * Reads infra/.env (the same file docker compose and the backend use), so the worker gets the
@@ -70,6 +73,10 @@ function log(...args: unknown[]) {
 async function main() {
   const envFile = loadInfraEnv();
   log(envFile ? `settings from ${envFile}` : 'no infra/.env found, using defaults / shell variables');
+  // bundle + browser once, before taking jobs (5.5)
+  const t0 = Date.now();
+  const renderer = await Renderer.start({ browserExecutable: process.env.REMOTION_BROWSER_EXECUTABLE ?? null });
+  log(`renderer ready in ${((Date.now() - t0) / 1000).toFixed(1)} s (${renderer.concurrency} tabs per video, gl=${renderer.gl})`);
   const url = rabbitUrl();
   log(`connecting to ${url.replace(/\/\/[^@]*@/, '//***@')}`);
   const conn = await amqp.connect(url);
@@ -90,7 +97,7 @@ async function main() {
     let req: Request | null = null;
     try {
       req = JSON.parse(msg.content.toString('utf8')) as Request;
-      await handle(req, report);
+      await handle(req, report, renderer);
     } catch (e) {
       const error = e instanceof Error ? e.message : String(e);
       log(`job ${req?.jobId ?? '?'} FAILED: ${error}`);
@@ -107,6 +114,7 @@ async function main() {
     log('stopping');
     await channel.close().catch(() => undefined);
     await conn.close().catch(() => undefined);
+    await renderer.close().catch(() => undefined);
     process.exit(0);
   };
   process.on('SIGINT', stop);

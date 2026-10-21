@@ -4,6 +4,7 @@
  *
  *   npm run demo                 -> samples/demo/spec.json (PORTRAIT)
  *   npm run demo -- LANDSCAPE    -> 16:9 version
+ *   npm run demo -- PORTRAIT 60  -> ~60 s version (extra scenes), for speed tests (5.5)
  *   npm run render -- samples/demo/spec.json
  */
 import fs from 'node:fs';
@@ -24,6 +25,31 @@ function scene(narration: string, visual: Visual): SpecScene {
 }
 
 const aspect = (process.argv[2] as AspectRatio) || 'PORTRAIT';
+const long = process.argv[3] === '60';
+
+/** Extra scenes for the ~60 s version, inserted before the call to action. */
+const extra: SpecScene[] = [
+  scene('Continuous integration means every developer merges small changes into main, many times a day.', {
+    type: 'title',
+    title: 'Continuous Integration',
+    subtitle: 'Small changes, merged often',
+  }),
+  scene('A failing test blocks the merge, the author gets a message, fixes it, and pushes again.', {
+    type: 'flow',
+    steps: ['Push', 'Test fails', 'Fix', 'Push again'],
+  }),
+  scene('Continuous delivery adds three things. Staging environments, automatic rollbacks, and release notes.', {
+    type: 'list',
+    items: ['Staging environments', 'Automatic rollbacks', 'Release notes'],
+  }),
+  scene('Most pipelines finish in under 10 minutes, so feedback comes while the code is still fresh.', {
+    type: 'stat',
+    value: 10,
+    prefix: '<',
+    suffix: ' min',
+    label: 'from push to feedback',
+  }),
+];
 
 const spec: RenderSpec = {
   aspectRatio: aspect,
@@ -79,8 +105,14 @@ const spec: RenderSpec = {
   ],
 };
 
+if (long) {
+  spec.title = 'CI/CD in one minute';
+  spec.scenes.splice(spec.scenes.length - 1, 0, ...extra);
+}
+
 const dir = path.join('samples', 'demo');
 fs.mkdirSync(dir, { recursive: true });
-const file = path.join(dir, aspect === 'PORTRAIT' ? 'spec.json' : `spec-${aspect.toLowerCase()}.json`);
+const file = path.join(dir, (aspect === 'PORTRAIT' ? 'spec' : `spec-${aspect.toLowerCase()}`) + (long ? '-60' : '') + '.json');
 fs.writeFileSync(file, JSON.stringify(spec, null, 2));
-console.log(`Wrote ${file}: ${spec.scenes.length} scenes, ${aspect}`);
+const seconds = spec.scenes.reduce((t, sc) => t + sc.audioSeconds, 0);
+console.log(`Wrote ${file}: ${spec.scenes.length} scenes, ~${Math.round(seconds)} s, ${aspect}`);

@@ -1,0 +1,856 @@
+{
+  "aspectRatio": "LANDSCAPE",
+  "title": "CI/CD in one minute",
+  "scenes": [
+    {
+      "audioSeconds": 4.96,
+      "words": [
+        {
+          "word": "How",
+          "startSeconds": 0.2,
+          "endSeconds": 0.53
+        },
+        {
+          "word": "does",
+          "startSeconds": 0.58,
+          "endSeconds": 0.91
+        },
+        {
+          "word": "CI/CD",
+          "startSeconds": 0.97,
+          "endSeconds": 1.3
+        },
+        {
+          "word": "actually",
+          "startSeconds": 1.35,
+          "endSeconds": 1.68
+        },
+        {
+          "word": "work?",
+          "startSeconds": 1.74,
+          "endSeconds": 2.07
+        },
+        {
+          "word": "Let",
+          "startSeconds": 2.12,
+          "endSeconds": 2.45
+        },
+        {
+          "word": "me",
+          "startSeconds": 2.51,
+          "endSeconds": 2.83
+        },
+        {
+          "word": "show",
+          "startSeconds": 2.89,
+          "endSeconds": 3.22
+        },
+        {
+          "word": "you",
+          "startSeconds": 3.28,
+          "endSeconds": 3.6
+        },
+        {
+          "word": "in",
+          "startSeconds": 3.66,
+          "endSeconds": 3.99
+        },
+        {
+          "word": "30",
+          "startSeconds": 4.05,
+          "endSeconds": 4.37
+        },
+        {
+          "word": "seconds.",
+          "startSeconds": 4.43,
+          "endSeconds": 4.76
+        }
+      ],
+      "visual": {
+        "type": "title",
+        "title": "CI/CD",
+        "subtitle": "Explained in 30 seconds"
+      }
+    },
+    {
+      "audioSeconds": 4.57,
+      "words": [
+        {
+          "word": "Every",
+          "startSeconds": 0.2,
+          "endSeconds": 0.53
+        },
+        {
+          "word": "push",
+          "startSeconds": 0.58,
+          "endSeconds": 0.91
+        },
+        {
+          "word": "goes",
+          "startSeconds": 0.97,
+          "endSeconds": 1.3
+        },
+        {
+          "word": "through",
+          "startSeconds": 1.35,
+          "endSeconds": 1.68
+        },
+        {
+          "word": "four",
+          "startSeconds": 1.74,
+          "endSeconds": 2.07
+        },
+        {
+          "word": "stages.",
+          "startSeconds": 2.12,
+          "endSeconds": 2.45
+        },
+        {
+          "word": "Code,",
+          "startSeconds": 2.51,
+          "endSeconds": 2.83
+        },
+        {
+          "word": "build,",
+          "startSeconds": 2.89,
+          "endSeconds": 3.22
+        },
+        {
+          "word": "test,",
+          "startSeconds": 3.28,
+          "endSeconds": 3.6
+        },
+        {
+          "word": "and",
+          "startSeconds": 3.66,
+          "endSeconds": 3.99
+        },
+        {
+          "word": "deploy.",
+          "startSeconds": 4.05,
+          "endSeconds": 4.37
+        }
+      ],
+      "visual": {
+        "type": "flow",
+        "steps": [
+          "Code",
+          "Build",
+          "Test",
+          "Deploy"
+        ]
+      }
+    },
+    {
+      "audioSeconds": 5.34,
+      "words": [
+        {
+          "word": "Tests",
+          "startSeconds": 0.2,
+          "endSeconds": 0.53
+        },
+        {
+          "word": "catch",
+          "startSeconds": 0.58,
+          "endSeconds": 0.91
+        },
+        {
+          "word": "bugs",
+          "startSeconds": 0.97,
+          "endSeconds": 1.3
+        },
+        {
+          "word": "early,",
+          "startSeconds": 1.35,
+          "endSeconds": 1.68
+        },
+        {
+          "word": "every",
+          "startSeconds": 1.74,
+          "endSeconds": 2.07
+        },
+        {
+          "word": "change",
+          "startSeconds": 2.12,
+          "endSeconds": 2.45
+        },
+        {
+          "word": "is",
+          "startSeconds": 2.51,
+          "endSeconds": 2.83
+        },
+        {
+          "word": "checked,",
+          "startSeconds": 2.89,
+          "endSeconds": 3.22
+        },
+        {
+          "word": "and",
+          "startSeconds": 3.28,
+          "endSeconds": 3.6
+        },
+        {
+          "word": "nobody",
+          "startSeconds": 3.66,
+          "endSeconds": 3.99
+        },
+        {
+          "word": "deploys",
+          "startSeconds": 4.05,
+          "endSeconds": 4.37
+        },
+        {
+          "word": "by",
+          "startSeconds": 4.43,
+          "endSeconds": 4.76
+        },
+        {
+          "word": "hand.",
+          "startSeconds": 4.82,
+          "endSeconds": 5.14
+        }
+      ],
+      "visual": {
+        "type": "list",
+        "items": [
+          "Tests catch bugs early",
+          "Every change is checked",
+          "Nobody deploys by hand"
+        ]
+      }
+    },
+    {
+      "audioSeconds": 4.19,
+      "words": [
+        {
+          "word": "Teams",
+          "startSeconds": 0.2,
+          "endSeconds": 0.53
+        },
+        {
+          "word": "with",
+          "startSeconds": 0.58,
+          "endSeconds": 0.91
+        },
+        {
+          "word": "CI/CD",
+          "startSeconds": 0.97,
+          "endSeconds": 1.3
+        },
+        {
+          "word": "deploy",
+          "startSeconds": 1.35,
+          "endSeconds": 1.68
+        },
+        {
+          "word": "up",
+          "startSeconds": 1.74,
+          "endSeconds": 2.07
+        },
+        {
+          "word": "to",
+          "startSeconds": 2.12,
+          "endSeconds": 2.45
+        },
+        {
+          "word": "200",
+          "startSeconds": 2.51,
+          "endSeconds": 2.83
+        },
+        {
+          "word": "times",
+          "startSeconds": 2.89,
+          "endSeconds": 3.22
+        },
+        {
+          "word": "more",
+          "startSeconds": 3.28,
+          "endSeconds": 3.6
+        },
+        {
+          "word": "often.",
+          "startSeconds": 3.66,
+          "endSeconds": 3.99
+        }
+      ],
+      "visual": {
+        "type": "stat",
+        "value": 200,
+        "suffix": "x",
+        "label": "more deployments"
+      }
+    },
+    {
+      "audioSeconds": 7.27,
+      "words": [
+        {
+          "word": "Without",
+          "startSeconds": 0.2,
+          "endSeconds": 0.53
+        },
+        {
+          "word": "it,",
+          "startSeconds": 0.58,
+          "endSeconds": 0.91
+        },
+        {
+          "word": "releases",
+          "startSeconds": 0.97,
+          "endSeconds": 1.3
+        },
+        {
+          "word": "are",
+          "startSeconds": 1.35,
+          "endSeconds": 1.68
+        },
+        {
+          "word": "manual",
+          "startSeconds": 1.74,
+          "endSeconds": 2.07
+        },
+        {
+          "word": "and",
+          "startSeconds": 2.12,
+          "endSeconds": 2.45
+        },
+        {
+          "word": "scary.",
+          "startSeconds": 2.51,
+          "endSeconds": 2.83
+        },
+        {
+          "word": "With",
+          "startSeconds": 2.89,
+          "endSeconds": 3.22
+        },
+        {
+          "word": "it,",
+          "startSeconds": 3.28,
+          "endSeconds": 3.6
+        },
+        {
+          "word": "they",
+          "startSeconds": 3.66,
+          "endSeconds": 3.99
+        },
+        {
+          "word": "are",
+          "startSeconds": 4.05,
+          "endSeconds": 4.37
+        },
+        {
+          "word": "automatic",
+          "startSeconds": 4.43,
+          "endSeconds": 4.76
+        },
+        {
+          "word": "and",
+          "startSeconds": 4.82,
+          "endSeconds": 5.14
+        },
+        {
+          "word": "boring,",
+          "startSeconds": 5.2,
+          "endSeconds": 5.53
+        },
+        {
+          "word": "in",
+          "startSeconds": 5.58,
+          "endSeconds": 5.91
+        },
+        {
+          "word": "a",
+          "startSeconds": 5.97,
+          "endSeconds": 6.3
+        },
+        {
+          "word": "good",
+          "startSeconds": 6.35,
+          "endSeconds": 6.68
+        },
+        {
+          "word": "way.",
+          "startSeconds": 6.74,
+          "endSeconds": 7.07
+        }
+      ],
+      "visual": {
+        "type": "compare",
+        "leftTitle": "Without CI/CD",
+        "rightTitle": "With CI/CD",
+        "left": [
+          "Manual releases",
+          "Bugs found late"
+        ],
+        "right": [
+          "Automatic releases",
+          "Bugs found in minutes"
+        ]
+      }
+    },
+    {
+      "audioSeconds": 5.34,
+      "words": [
+        {
+          "word": "Here",
+          "startSeconds": 0.2,
+          "endSeconds": 0.53
+        },
+        {
+          "word": "is",
+          "startSeconds": 0.58,
+          "endSeconds": 0.91
+        },
+        {
+          "word": "a",
+          "startSeconds": 0.97,
+          "endSeconds": 1.3
+        },
+        {
+          "word": "whole",
+          "startSeconds": 1.35,
+          "endSeconds": 1.68
+        },
+        {
+          "word": "pipeline",
+          "startSeconds": 1.74,
+          "endSeconds": 2.07
+        },
+        {
+          "word": "in",
+          "startSeconds": 2.12,
+          "endSeconds": 2.45
+        },
+        {
+          "word": "GitHub",
+          "startSeconds": 2.51,
+          "endSeconds": 2.83
+        },
+        {
+          "word": "Actions.",
+          "startSeconds": 2.89,
+          "endSeconds": 3.22
+        },
+        {
+          "word": "A",
+          "startSeconds": 3.28,
+          "endSeconds": 3.6
+        },
+        {
+          "word": "few",
+          "startSeconds": 3.66,
+          "endSeconds": 3.99
+        },
+        {
+          "word": "lines",
+          "startSeconds": 4.05,
+          "endSeconds": 4.37
+        },
+        {
+          "word": "of",
+          "startSeconds": 4.43,
+          "endSeconds": 4.76
+        },
+        {
+          "word": "YAML.",
+          "startSeconds": 4.82,
+          "endSeconds": 5.14
+        }
+      ],
+      "visual": {
+        "type": "code",
+        "language": "github-actions.yml",
+        "code": "# runs on every push\non: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm ci\n      - run: npm test\n      - run: npm run deploy"
+      }
+    },
+    {
+      "audioSeconds": 5.73,
+      "words": [
+        {
+          "word": "Continuous",
+          "startSeconds": 0.2,
+          "endSeconds": 0.53
+        },
+        {
+          "word": "integration",
+          "startSeconds": 0.58,
+          "endSeconds": 0.91
+        },
+        {
+          "word": "means",
+          "startSeconds": 0.97,
+          "endSeconds": 1.3
+        },
+        {
+          "word": "every",
+          "startSeconds": 1.35,
+          "endSeconds": 1.68
+        },
+        {
+          "word": "developer",
+          "startSeconds": 1.74,
+          "endSeconds": 2.07
+        },
+        {
+          "word": "merges",
+          "startSeconds": 2.12,
+          "endSeconds": 2.45
+        },
+        {
+          "word": "small",
+          "startSeconds": 2.51,
+          "endSeconds": 2.83
+        },
+        {
+          "word": "changes",
+          "startSeconds": 2.89,
+          "endSeconds": 3.22
+        },
+        {
+          "word": "into",
+          "startSeconds": 3.28,
+          "endSeconds": 3.6
+        },
+        {
+          "word": "main,",
+          "startSeconds": 3.66,
+          "endSeconds": 3.99
+        },
+        {
+          "word": "many",
+          "startSeconds": 4.05,
+          "endSeconds": 4.37
+        },
+        {
+          "word": "times",
+          "startSeconds": 4.43,
+          "endSeconds": 4.76
+        },
+        {
+          "word": "a",
+          "startSeconds": 4.82,
+          "endSeconds": 5.14
+        },
+        {
+          "word": "day.",
+          "startSeconds": 5.2,
+          "endSeconds": 5.53
+        }
+      ],
+      "visual": {
+        "type": "title",
+        "title": "Continuous Integration",
+        "subtitle": "Small changes, merged often"
+      }
+    },
+    {
+      "audioSeconds": 6.5,
+      "words": [
+        {
+          "word": "A",
+          "startSeconds": 0.2,
+          "endSeconds": 0.53
+        },
+        {
+          "word": "failing",
+          "startSeconds": 0.58,
+          "endSeconds": 0.91
+        },
+        {
+          "word": "test",
+          "startSeconds": 0.97,
+          "endSeconds": 1.3
+        },
+        {
+          "word": "blocks",
+          "startSeconds": 1.35,
+          "endSeconds": 1.68
+        },
+        {
+          "word": "the",
+          "startSeconds": 1.74,
+          "endSeconds": 2.07
+        },
+        {
+          "word": "merge,",
+          "startSeconds": 2.12,
+          "endSeconds": 2.45
+        },
+        {
+          "word": "the",
+          "startSeconds": 2.51,
+          "endSeconds": 2.83
+        },
+        {
+          "word": "author",
+          "startSeconds": 2.89,
+          "endSeconds": 3.22
+        },
+        {
+          "word": "gets",
+          "startSeconds": 3.28,
+          "endSeconds": 3.6
+        },
+        {
+          "word": "a",
+          "startSeconds": 3.66,
+          "endSeconds": 3.99
+        },
+        {
+          "word": "message,",
+          "startSeconds": 4.05,
+          "endSeconds": 4.37
+        },
+        {
+          "word": "fixes",
+          "startSeconds": 4.43,
+          "endSeconds": 4.76
+        },
+        {
+          "word": "it,",
+          "startSeconds": 4.82,
+          "endSeconds": 5.14
+        },
+        {
+          "word": "and",
+          "startSeconds": 5.2,
+          "endSeconds": 5.53
+        },
+        {
+          "word": "pushes",
+          "startSeconds": 5.58,
+          "endSeconds": 5.91
+        },
+        {
+          "word": "again.",
+          "startSeconds": 5.97,
+          "endSeconds": 6.3
+        }
+      ],
+      "visual": {
+        "type": "flow",
+        "steps": [
+          "Push",
+          "Test fails",
+          "Fix",
+          "Push again"
+        ]
+      }
+    },
+    {
+      "audioSeconds": 4.96,
+      "words": [
+        {
+          "word": "Continuous",
+          "startSeconds": 0.2,
+          "endSeconds": 0.53
+        },
+        {
+          "word": "delivery",
+          "startSeconds": 0.58,
+          "endSeconds": 0.91
+        },
+        {
+          "word": "adds",
+          "startSeconds": 0.97,
+          "endSeconds": 1.3
+        },
+        {
+          "word": "three",
+          "startSeconds": 1.35,
+          "endSeconds": 1.68
+        },
+        {
+          "word": "things.",
+          "startSeconds": 1.74,
+          "endSeconds": 2.07
+        },
+        {
+          "word": "Staging",
+          "startSeconds": 2.12,
+          "endSeconds": 2.45
+        },
+        {
+          "word": "environments,",
+          "startSeconds": 2.51,
+          "endSeconds": 2.83
+        },
+        {
+          "word": "automatic",
+          "startSeconds": 2.89,
+          "endSeconds": 3.22
+        },
+        {
+          "word": "rollbacks,",
+          "startSeconds": 3.28,
+          "endSeconds": 3.6
+        },
+        {
+          "word": "and",
+          "startSeconds": 3.66,
+          "endSeconds": 3.99
+        },
+        {
+          "word": "release",
+          "startSeconds": 4.05,
+          "endSeconds": 4.37
+        },
+        {
+          "word": "notes.",
+          "startSeconds": 4.43,
+          "endSeconds": 4.76
+        }
+      ],
+      "visual": {
+        "type": "list",
+        "items": [
+          "Staging environments",
+          "Automatic rollbacks",
+          "Release notes"
+        ]
+      }
+    },
+    {
+      "audioSeconds": 6.5,
+      "words": [
+        {
+          "word": "Most",
+          "startSeconds": 0.2,
+          "endSeconds": 0.53
+        },
+        {
+          "word": "pipelines",
+          "startSeconds": 0.58,
+          "endSeconds": 0.91
+        },
+        {
+          "word": "finish",
+          "startSeconds": 0.97,
+          "endSeconds": 1.3
+        },
+        {
+          "word": "in",
+          "startSeconds": 1.35,
+          "endSeconds": 1.68
+        },
+        {
+          "word": "under",
+          "startSeconds": 1.74,
+          "endSeconds": 2.07
+        },
+        {
+          "word": "10",
+          "startSeconds": 2.12,
+          "endSeconds": 2.45
+        },
+        {
+          "word": "minutes,",
+          "startSeconds": 2.51,
+          "endSeconds": 2.83
+        },
+        {
+          "word": "so",
+          "startSeconds": 2.89,
+          "endSeconds": 3.22
+        },
+        {
+          "word": "feedback",
+          "startSeconds": 3.28,
+          "endSeconds": 3.6
+        },
+        {
+          "word": "comes",
+          "startSeconds": 3.66,
+          "endSeconds": 3.99
+        },
+        {
+          "word": "while",
+          "startSeconds": 4.05,
+          "endSeconds": 4.37
+        },
+        {
+          "word": "the",
+          "startSeconds": 4.43,
+          "endSeconds": 4.76
+        },
+        {
+          "word": "code",
+          "startSeconds": 4.82,
+          "endSeconds": 5.14
+        },
+        {
+          "word": "is",
+          "startSeconds": 5.2,
+          "endSeconds": 5.53
+        },
+        {
+          "word": "still",
+          "startSeconds": 5.58,
+          "endSeconds": 5.91
+        },
+        {
+          "word": "fresh.",
+          "startSeconds": 5.97,
+          "endSeconds": 6.3
+        }
+      ],
+      "visual": {
+        "type": "stat",
+        "value": 10,
+        "prefix": "<",
+        "suffix": " min",
+        "label": "from push to feedback"
+      }
+    },
+    {
+      "audioSeconds": 3.42,
+      "words": [
+        {
+          "word": "Follow",
+          "startSeconds": 0.2,
+          "endSeconds": 0.53
+        },
+        {
+          "word": "for",
+          "startSeconds": 0.58,
+          "endSeconds": 0.91
+        },
+        {
+          "word": "more",
+          "startSeconds": 0.97,
+          "endSeconds": 1.3
+        },
+        {
+          "word": "dev",
+          "startSeconds": 1.35,
+          "endSeconds": 1.68
+        },
+        {
+          "word": "explained",
+          "startSeconds": 1.74,
+          "endSeconds": 2.07
+        },
+        {
+          "word": "in",
+          "startSeconds": 2.12,
+          "endSeconds": 2.45
+        },
+        {
+          "word": "a",
+          "startSeconds": 2.51,
+          "endSeconds": 2.83
+        },
+        {
+          "word": "minute.",
+          "startSeconds": 2.89,
+          "endSeconds": 3.22
+        }
+      ],
+      "visual": {
+        "type": "cta",
+        "text": "Follow for more",
+        "handle": "@erkasa"
+      }
+    }
+  ]
+}
