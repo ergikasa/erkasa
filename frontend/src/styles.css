@@ -1,0 +1,54 @@
+@import 'tailwindcss';
+
+/*
+ * "Dark tech", the same look as the videos (render-worker/src/theme.ts).
+ * Tailwind v4: every --color-* here becomes a class (bg-surface, text-muted, border-line ...).
+ */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --color-bg: #070b16;
+  --color-surface: #0e1528;
+  --color-surface-2: #151e36;
+  --color-line: #243050;
+  --color-text: #eef2ff;
+  --color-muted: #94a3c4;
+  --color-accent: #22d3ee;
+  --color-accent-2: #a78bfa;
+  --color-danger: #f87171;
+  --color-success: #34d399;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-bg font-sans text-text antialiased;
+  }
+  /* 16px inputs: iPhone Safari zooms into anything smaller when you tap it */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+}
+
+@utility safe-bottom {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+@utility safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+@utility glow {
+  background:
+    radial-gradient(60% 40% at 20% 0%, rgb(34 211 238 / 0.14), transparent 70%),
+    radial-gradient(50% 40% at 90% 10%, rgb(167 139 250 / 0.14), transparent 70%);
+}
