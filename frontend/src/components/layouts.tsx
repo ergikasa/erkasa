@@ -119,7 +119,7 @@ const CreditsChip: React.FC = () => {
   const n = credits.data.balance;
   return (
     <Link
-      to="/account"
+      to="/credits"
       title={t('credits.perSecond')}
       aria-label={t('credits.short', { n })}
       className={`inline-flex min-h-9 items-center gap-1.5 rounded-xl border px-2.5 text-sm font-semibold transition hover:border-accent/60 ${n < 15 ? 'border-danger/50 text-danger' : 'border-line text-text'}`}

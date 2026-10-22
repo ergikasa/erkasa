@@ -144,6 +144,17 @@ erkasa:
   # Phase 7: 1 credit = 1 second of video. New accounts get this many for free.
   credits:
     signup-bonus: ${CREDITS_SIGNUP_BONUS:30}
+  # Phase 8: credit packs paid with Paddle (merchant of record: they handle tax and invoices).
+  # Sandbox = test cards, no real money. Keys: Paddle dashboard -> Developer tools -> Authentication / Notifications.
+  paddle:
+    environment: ${PADDLE_ENV:sandbox}
+    client-token: ${PADDLE_CLIENT_TOKEN:}
+    webhook-secret: ${PADDLE_WEBHOOK_SECRET:}
+    signature-tolerance: 5m
+    packs:
+      - { id: starter, price-id: "${PADDLE_PRICE_STARTER:}", credits: 300,  display-price: "$5" }
+      - { id: creator, price-id: "${PADDLE_PRICE_CREATOR:}", credits: 900,  display-price: "$12" }
+      - { id: pro,     price-id: "${PADDLE_PRICE_PRO:}",     credits: 2700, display-price: "$29" }
   rate-limit:
     enabled: true
     # Locally there is no proxy. In production (behind nginx/Cloudflare) this is true, see application-prod.yml.

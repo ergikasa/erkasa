@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { AspectRatio, LANGUAGES, Language, projectsApi } from '../api/projects';
@@ -134,7 +134,14 @@ export const NewVideoPage: React.FC = () => {
               {t('newVideo.credits', { n: durationSeconds })}
               {balance != null ? ` · ${t('credits.youHave', { n: balance })}` : ''}
             </p>
-            {tooLong ? <p className="mt-1 text-danger">{t('credits.notEnough', { need: durationSeconds, n: balance })}</p> : null}
+            {tooLong ? (
+              <p className="mt-1 text-danger">
+                {t('credits.notEnough', { need: durationSeconds, n: balance })}{' '}
+                <Link to="/credits" className="font-semibold text-accent underline underline-offset-4">
+                  {t('credits.buyMore')}
+                </Link>
+              </p>
+            ) : null}
           </div>
           <Button type="submit" loading={busy} className="sm:min-w-56">
             {t('newVideo.submit')}

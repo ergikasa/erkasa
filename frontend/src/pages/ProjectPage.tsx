@@ -192,7 +192,7 @@ const ScriptReview: React.FC<{ project: Project }> = ({ project }) => {
   const [draft, setDraft] = useState<VideoScript>(project.script!);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState<'save' | 'approve' | 'regenerate' | 'cancel' | null>(null);
-  const [error, setError] = useState<{ text: string; problems: string[] } | null>(null);
+  const [error, setError] = useState<{ text: string; problems: string[]; noCredits?: boolean } | null>(null);
   const [saved, setSaved] = useState(false);
   const top = useRef<HTMLDivElement>(null);
 
@@ -204,7 +204,7 @@ const ScriptReview: React.FC<{ project: Project }> = ({ project }) => {
   const update = (p: Project) => queryClient.setQueryData(['project', p.id], p);
 
   const fail = (e: unknown) => {
-    setError({ text: errorText(e), problems: e instanceof ApiError ? e.problems : [] });
+    setError({ text: errorText(e), problems: e instanceof ApiError ? e.problems : [], noCredits: e instanceof ApiError && e.code === 'INSUFFICIENT_CREDITS' });
     top.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
     if (e instanceof ApiError && e.code === 'INVALID_STATE') void queryClient.invalidateQueries({ queryKey: ['project', project.id] });
   };
@@ -265,7 +265,17 @@ const ScriptReview: React.FC<{ project: Project }> = ({ project }) => {
       {error ? (
         <div className="mt-4">
           <Alert>
-            <p>{error.text}</p>
+            <p>
+              {error.text}
+              {error.noCredits ? (
+                <>
+                  {' '}
+                  <Link to="/credits" className="font-semibold underline underline-offset-4">
+                    {t('credits.buyMore')}
+                  </Link>
+                </>
+              ) : null}
+            </p>
             {error.problems.length ? (
               <>
                 <p className="mt-2 font-semibold">{t('project.problems')}</p>

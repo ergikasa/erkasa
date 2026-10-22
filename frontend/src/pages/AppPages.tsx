@@ -175,7 +175,12 @@ const CreditsCard: React.FC = () => {
           <p className="text-sm text-muted">{t('credits.title')}</p>
           <p className="mt-1 text-4xl font-black tracking-tight text-accent">{data ? data.balance : '…'}</p>
         </div>
-        <p className="text-right text-xs text-muted">{t('credits.perSecond')}</p>
+        <div className="flex flex-col items-end gap-2">
+          <p className="text-right text-xs text-muted">{t('credits.perSecond')}</p>
+          <Link to="/credits" className={buttonClass('primary', false, 'min-h-10 text-sm')}>
+            + {t('credits.buyMore')}
+          </Link>
+        </div>
       </div>
       <h2 className="mt-5 text-sm font-semibold text-muted">{t('credits.history')}</h2>
       {data && data.transactions.length === 0 ? <p className="mt-2 text-sm text-muted">{t('credits.empty')}</p> : null}

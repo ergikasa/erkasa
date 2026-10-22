@@ -11,6 +11,7 @@ import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from './pages/
 import { AccountPage, ErrorPage, HomePage, NotFoundPage } from './pages/AppPages';
 import { NewVideoPage } from './pages/NewVideoPage';
 import { ProjectPage } from './pages/ProjectPage';
+import { BuyCreditsPage } from './pages/BuyCreditsPage';
 
 export const routes = [
   { path: '/login', element: <GuestOnly><LoginPage /></GuestOnly> },
@@ -32,6 +33,7 @@ export const routes = [
       { path: 'new', element: <NewVideoPage /> },
       { path: 'projects/:id', element: <ProjectPage /> },
           { path: 'account', element: <AccountPage /> },
+          { path: 'credits', element: <BuyCreditsPage /> },
         ],
       },
     ],

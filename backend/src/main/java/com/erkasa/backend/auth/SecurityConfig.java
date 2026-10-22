@@ -45,7 +45,9 @@ public class SecurityConfig {
             "/api/auth/logout",
             "/api/auth/verify-email",
             "/api/auth/forgot-password",
-            "/api/auth/reset-password"
+            "/api/auth/reset-password",
+            // Paddle calls it; the request is proven by its signature, not by a login (phase 8)
+            "/api/billing/paddle/webhook"
     };
 
     private static final String[] PUBLIC_ANY = {

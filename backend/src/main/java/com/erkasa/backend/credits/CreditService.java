@@ -61,6 +61,28 @@ public class CreditService {
         return user.getCredits();
     }
 
+    /** Credits from a paid pack (Paddle webhook). The caller makes sure a payment counts once. */
+    @Transactional
+    public int purchase(UUID userId, int amount, String note) {
+        User user = lock(userId);
+        change(user, null, amount, CreditReason.PURCHASE, note);
+        return user.getCredits();
+    }
+
+    /**
+     * After a refund or chargeback: takes the bought credits back, but never more than the user
+     * still has (credits already spent on videos stay spent). Returns how many were taken.
+     */
+    @Transactional
+    public int takeBack(UUID userId, int amount, String note) {
+        User user = lock(userId);
+        int taken = Math.min(amount, user.getCredits());
+        if (taken > 0) {
+            change(user, null, -taken, CreditReason.PURCHASE_REFUND, note);
+        }
+        return taken;
+    }
+
     /**
      * Takes the video's price, unless it is already paid (a retry after a refund pays again).
      * 402 INSUFFICIENT_CREDITS when the balance is too low; nothing changes then.

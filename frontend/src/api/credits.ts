@@ -1,7 +1,7 @@
 import { api } from './client';
 
 /** GET /api/credits (backend CreditController). 1 credit = 1 second of video. */
-export type CreditReason = 'SIGNUP_BONUS' | 'VIDEO_CHARGE' | 'VIDEO_REFUND' | 'ADMIN_GRANT';
+export type CreditReason = 'SIGNUP_BONUS' | 'VIDEO_CHARGE' | 'VIDEO_REFUND' | 'ADMIN_GRANT' | 'PURCHASE' | 'PURCHASE_REFUND';
 export type CreditTransaction = {
   id: string;
   amount: number;

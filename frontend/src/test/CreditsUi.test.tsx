@@ -46,7 +46,7 @@ function renderAt(path: string) {
 describe('credits in the app', () => {
   it('shows the balance in the header', async () => {
     renderAt('/');
-    expect(await screen.findByRole('link', { name: '30 credits' })).toHaveAttribute('href', '/account');
+    expect(await screen.findByRole('link', { name: '30 credits' })).toHaveAttribute('href', '/credits');
   });
 
   it('warns on "New video" when the chosen length costs more than the balance', async () => {

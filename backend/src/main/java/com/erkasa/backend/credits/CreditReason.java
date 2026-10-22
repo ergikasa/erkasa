@@ -9,5 +9,9 @@ public enum CreditReason {
     /** the video failed or was cancelled: its charge goes back */
     VIDEO_REFUND,
     /** given by an admin (support, testing, before payments exist) */
-    ADMIN_GRANT
+    ADMIN_GRANT,
+    /** bought with a credit pack (Paddle, phase 8) */
+    PURCHASE,
+    /** a purchase was refunded or charged back: its credits go away (never below 0) */
+    PURCHASE_REFUND
 }

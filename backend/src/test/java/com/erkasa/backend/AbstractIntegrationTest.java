@@ -36,7 +36,23 @@ import org.testcontainers.containers.wait.strategy.Wait;
                 // running jobs on startup. PipelineRecoveryTests calls recover() by hand.
                 "erkasa.pipeline.recover-on-startup=false",
                 // Many tests approve many videos with one account; CreditTests checks the real rules.
-                "erkasa.credits.signup-bonus=10000"
+                "erkasa.credits.signup-bonus=10000",
+                // Paddle (phase 8): a test secret and fake price ids; PaddleWebhookTests signs with it
+                "erkasa.paddle.client-token=test_client_token",
+                "erkasa.paddle.webhook-secret=pdl_ntfset_test_secret",
+                // a list set here replaces the whole list from application.yml, so every field is set
+                "erkasa.paddle.packs[0].id=starter",
+                "erkasa.paddle.packs[0].price-id=pri_test_starter",
+                "erkasa.paddle.packs[0].credits=300",
+                "erkasa.paddle.packs[0].display-price=$5",
+                "erkasa.paddle.packs[1].id=creator",
+                "erkasa.paddle.packs[1].price-id=pri_test_creator",
+                "erkasa.paddle.packs[1].credits=900",
+                "erkasa.paddle.packs[1].display-price=$12",
+                "erkasa.paddle.packs[2].id=pro",
+                "erkasa.paddle.packs[2].price-id=pri_test_pro",
+                "erkasa.paddle.packs[2].credits=2700",
+                "erkasa.paddle.packs[2].display-price=$29"
         })
 public abstract class AbstractIntegrationTest {
 
