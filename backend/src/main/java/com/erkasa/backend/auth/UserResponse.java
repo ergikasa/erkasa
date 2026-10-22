@@ -13,7 +13,9 @@ public record UserResponse(
         String displayName,
         boolean emailVerified,
         Role role,
-        Instant createdAt
+        Instant createdAt,
+        /** balance: 1 credit = 1 second of video (phase 7) */
+        int credits
 ) {
 
     public static UserResponse from(User user) {
@@ -23,6 +25,7 @@ public record UserResponse(
                 user.getDisplayName(),
                 user.isEmailVerified(),
                 user.getRole(),
-                user.getCreatedAt());
+                user.getCreatedAt(),
+                user.getCredits());
     }
 }

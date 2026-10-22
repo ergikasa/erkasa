@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { CREDITS_KEY } from '../api/credits';
 import { ApiError } from '../api/client';
 import { Project, VideoScript, isWorking, projectsApi } from '../api/projects';
 import { ScriptEditor, cleanScript } from '../components/ScriptEditor';
@@ -237,6 +238,7 @@ const ScriptReview: React.FC<{ project: Project }> = ({ project }) => {
     run('approve', async () => {
       if (dirty) await save();
       update(await projectsApi.approve(project.id));
+      void queryClient.invalidateQueries({ queryKey: CREDITS_KEY });
     });
 
   const onRegenerate = () => {
@@ -251,6 +253,7 @@ const ScriptReview: React.FC<{ project: Project }> = ({ project }) => {
     if (!window.confirm(t('project.cancelConfirm'))) return;
     void run('cancel', async () => {
       update(await projectsApi.cancel(project.id));
+      void queryClient.invalidateQueries({ queryKey: CREDITS_KEY });
     });
   };
 
@@ -338,6 +341,7 @@ const Failed: React.FC<{ project: Project }> = ({ project }) => {
     setError(null);
     try {
       queryClient.setQueryData(['project', project.id], await projectsApi.retry(project.id));
+      void queryClient.invalidateQueries({ queryKey: CREDITS_KEY });
     } catch (e) {
       setError(errorText(e));
     } finally {

@@ -225,6 +225,21 @@ export const sq: Messages = {
     mysterious: 'misterioze',
     fun: 'argëtuese',
   },
+  credits: {
+    title: 'Kreditet',
+    short: '{{n}} kredite',
+    perSecond: '1 kredit = 1 sekondë video',
+    history: 'Historiku',
+    empty: 'Ende asnjë ndryshim.',
+    youHave: 'Ke {{n}} kredite.',
+    notEnough: 'Kjo video do {{need}} kredite; ti ke {{n}}. Zgjidh një kohëzgjatje më të shkurtër.',
+    reason: {
+      SIGNUP_BONUS: 'Kredite mirëseardhjeje',
+      VIDEO_CHARGE: 'Video',
+      VIDEO_REFUND: 'Rimbursim',
+      ADMIN_GRANT: 'Dhuratë',
+    },
+  },
   account: {
     title: 'Llogaria',
     email: 'Email',

@@ -108,6 +108,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return createResponseEntity(body, new HttpHeaders(), HttpStatus.valueOf(422), request);
     }
 
+    /**
+     * @PreAuthorize said no (e.g. a USER calling an ADMIN endpoint). Without this, the catch-all
+     * below would turn it into a 500.
+     */
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<Object> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex,
+                                                     WebRequest request) {
+        ProblemDetail body = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "You are not allowed to do this");
+        body.setProperty("code", "FORBIDDEN");
+        return createResponseEntity(body, new HttpHeaders(), HttpStatus.FORBIDDEN, request);
+    }
+
     /** Anything unexpected: log the full error, but never show internal details to the client. */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleUnexpected(Exception ex, WebRequest request) {

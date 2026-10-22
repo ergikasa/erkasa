@@ -141,6 +141,9 @@ erkasa:
       usd-per-thousand-chars: 0.015
       timeout: 120s
 
+  # Phase 7: 1 credit = 1 second of video. New accounts get this many for free.
+  credits:
+    signup-bonus: ${CREDITS_SIGNUP_BONUS:30}
   rate-limit:
     enabled: true
     # Locally there is no proxy. In production (behind nginx/Cloudflare) this is true, see application-prod.yml.

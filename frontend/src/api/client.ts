@@ -27,6 +27,8 @@ export type User = {
   emailVerified: boolean;
   role: 'USER' | 'ADMIN';
   createdAt: string;
+  /** 1 credit = 1 second of video (phase 7) */
+  credits: number;
 };
 
 /** An error answer from the API (Spring ProblemDetail + our "code"). */

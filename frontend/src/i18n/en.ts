@@ -223,6 +223,21 @@ export const en = {
     mysterious: 'mysterious',
     fun: 'fun',
   },
+  credits: {
+    title: 'Credits',
+    short: '{{n}} credits',
+    perSecond: '1 credit = 1 second of video',
+    history: 'History',
+    empty: 'No changes yet.',
+    youHave: 'You have {{n}} credits.',
+    notEnough: 'This video needs {{need}} credits; you have {{n}}. Choose a shorter length.',
+    reason: {
+      SIGNUP_BONUS: 'Welcome credits',
+      VIDEO_CHARGE: 'Video',
+      VIDEO_REFUND: 'Refund',
+      ADMIN_GRANT: 'Gift',
+    },
+  },
   account: {
     title: 'Account',
     email: 'Email',

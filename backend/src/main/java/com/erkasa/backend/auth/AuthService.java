@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.erkasa.backend.common.error.ApiException;
+import com.erkasa.backend.credits.CreditService;
 
 /** Business logic for accounts: registration, password login, Google login, refresh and logout. */
 @Service
@@ -26,6 +27,7 @@ public class AuthService {
     private final RefreshTokenService refreshTokens;
     private final GoogleTokenVerifier googleVerifier;
     private final AccountService accountService;
+    private final CreditService credits;
 
     /**
      * Hash of a random password, used when the email does not exist. We still run one
@@ -39,13 +41,15 @@ public class AuthService {
                        JwtService jwtService,
                        RefreshTokenService refreshTokens,
                        GoogleTokenVerifier googleVerifier,
-                       AccountService accountService) {
+                       AccountService accountService,
+                       CreditService credits) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokens = refreshTokens;
         this.googleVerifier = googleVerifier;
         this.accountService = accountService;
+        this.credits = credits;
         this.dummyHash = passwordEncoder.encode("timing-protection-" + System.nanoTime());
     }
 
@@ -69,6 +73,7 @@ public class AuthService {
             throw emailTaken();
         }
         log.info("New user registered: {}", saved.getId());
+        credits.grantSignupBonus(saved);
 
         // Sent after this transaction commits (see EmailDispatcher).
         accountService.sendVerificationEmail(saved);
@@ -142,6 +147,7 @@ public class AuthService {
         try {
             User created = users.saveAndFlush(User.newGoogleUser(email, google.sub(), blankToNull(google.name())));
             log.info("New user registered with Google: {}", created.getId());
+            credits.grantSignupBonus(created);
             return created;
         } catch (DataIntegrityViolationException e) {
             // Two sign-ins for the same new account at the same moment; the other one won.

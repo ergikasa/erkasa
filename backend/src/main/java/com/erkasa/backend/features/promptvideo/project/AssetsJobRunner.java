@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.erkasa.backend.credits.CreditService;
 import com.erkasa.backend.assets.AssetStorage;
 import com.erkasa.backend.features.promptvideo.script.VideoScript;
 import com.erkasa.backend.jobs.Job;
@@ -68,12 +69,13 @@ public class AssetsJobRunner {
     private final TransactionTemplate tx;
     private final ObjectMapper json;
     private final ProjectEvents events;
+    private final CreditService credits;
     /** Provider calls of all jobs share this pool, so 10 users approving at once cannot open 300 connections. */
     private final ExecutorService calls;
 
     public AssetsJobRunner(ProjectRepository projects, JobRepository jobs, JobStepRepository steps,
                            ProviderGateway gateway, AssetStorage storage, PipelineWorkers workers,
-                           TransactionTemplate tx, ObjectMapper json, ProjectEvents events,
+                           TransactionTemplate tx, ObjectMapper json, ProjectEvents events, CreditService credits,
                            @Value("${erkasa.pipeline.parallel-calls:6}") int parallelCalls) {
         this.projects = projects;
         this.jobs = jobs;
@@ -84,6 +86,7 @@ public class AssetsJobRunner {
         this.tx = tx;
         this.json = json;
         this.events = events;
+        this.credits = credits;
         AtomicInteger n = new AtomicInteger();
         this.calls = Executors.newFixedThreadPool(parallelCalls, r -> {
             Thread t = new Thread(r, "provider-call-" + n.incrementAndGet());
@@ -243,6 +246,7 @@ public class AssetsJobRunner {
         String code = failed.get(0).getErrorCode();
         job.fail(code, message);
         project.fail(code, message);
+        credits.refundVideo(project.getUserId(), project.getId(), "Video failed: " + code);
         log.warn("Assets job {} failed: {}", jobId, message);
     }
 

@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.erkasa.backend.credits.CreditService;
 import com.erkasa.backend.assets.AssetStorage;
 import com.erkasa.backend.common.error.ApiException;
 import com.erkasa.backend.features.promptvideo.project.ProjectEvents;
@@ -57,12 +58,15 @@ public class RenderJobService {
     private final AssetStorage storage;
     private final RabbitTemplate rabbit;
     private final ProjectEvents events;
+    private final CreditService credits;
     private final TransactionTemplate tx;
     private final ObjectMapper json;
 
     public RenderJobService(ProjectRepository projects, JobRepository jobs, JobStepRepository steps,
                             RenderSpecBuilder specs, AssetStorage storage, RabbitTemplate rabbit,
-                            ProjectEvents events, TransactionTemplate tx, ObjectMapper json) {
+                            ProjectEvents events, TransactionTemplate tx, ObjectMapper json,
+                            CreditService credits) {
+        this.credits = credits;
         this.projects = projects;
         this.jobs = jobs;
         this.steps = steps;
@@ -198,6 +202,7 @@ public class RenderJobService {
         job.fail("RENDER_FAILED", message);
         if (project.getStatus() == ProjectStatus.RENDERING) {
             project.fail("RENDER_FAILED", message);
+            credits.refundVideo(project.getUserId(), project.getId(), "Video failed: RENDER_FAILED");
         }
         log.warn("Render job {} failed: {}", job.getId(), message);
     }

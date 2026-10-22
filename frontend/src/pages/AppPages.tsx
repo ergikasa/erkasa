@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Project, isWorking, projectsApi } from '../api/projects';
 import { Alert, Button, Spinner, buttonClass } from '../components/ui';
 import { StatusBadge } from './ProjectPage';
+import { useCredits } from '../hooks/useCredits';
 
 /** "Your videos": newest first, with the status of each. Keeps itself fresh while something runs. */
 export const HomePage: React.FC = () => {
@@ -150,6 +151,7 @@ export const AccountPage: React.FC = () => {
         />
         <Row label={t('account.memberSince')} value={since} />
       </dl>
+      <CreditsCard />
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <Button variant="secondary" onClick={() => void auth.logout()}>
           {t('nav.logout')}
@@ -159,6 +161,48 @@ export const AccountPage: React.FC = () => {
         </Button>
       </div>
     </section>
+  );
+};
+
+const CreditsCard: React.FC = () => {
+  const { t, i18n } = useTranslation();
+  const credits = useCredits();
+  const data = credits.data;
+  return (
+    <div className="mt-6 rounded-2xl border border-line bg-surface p-4 sm:p-5">
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <p className="text-sm text-muted">{t('credits.title')}</p>
+          <p className="mt-1 text-4xl font-black tracking-tight text-accent">{data ? data.balance : '…'}</p>
+        </div>
+        <p className="text-right text-xs text-muted">{t('credits.perSecond')}</p>
+      </div>
+      <h2 className="mt-5 text-sm font-semibold text-muted">{t('credits.history')}</h2>
+      {data && data.transactions.length === 0 ? <p className="mt-2 text-sm text-muted">{t('credits.empty')}</p> : null}
+      <ul className="mt-2 divide-y divide-line">
+        {(data?.transactions ?? []).map((tx) => (
+          <li key={tx.id} className="flex items-center gap-3 py-2.5 text-sm">
+            <div className="min-w-0 flex-1">
+              <p className="truncate">
+                {t(`credits.reason.${tx.reason}`)}
+                {tx.projectId ? (
+                  <Link to={`/projects/${tx.projectId}`} className="ml-2 text-accent hover:underline">
+                    ›
+                  </Link>
+                ) : null}
+              </p>
+              <p className="text-xs text-muted">
+                {new Date(tx.createdAt).toLocaleString(i18n.resolvedLanguage, { dateStyle: 'medium', timeStyle: 'short' })}
+              </p>
+            </div>
+            <span className={`font-semibold tabular-nums ${tx.amount > 0 ? 'text-success' : 'text-text'}`}>
+              {tx.amount > 0 ? '+' : '−'}
+              {Math.abs(tx.amount)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 };
 

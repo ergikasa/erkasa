@@ -5,6 +5,7 @@ import { authApi } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
 import { LanguageSwitch, Logo } from './brand';
 import { Alert, Button } from './ui';
+import { useCredits } from '../hooks/useCredits';
 
 /**
  * Login, register, password pages.
@@ -69,6 +70,7 @@ export const AppLayout: React.FC = () => {
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            <CreditsChip />
             <LanguageSwitch />
             {/* on phones "Log out" is on the Account tab */}
             <div className="hidden md:block">
@@ -106,6 +108,28 @@ export const AppLayout: React.FC = () => {
         ))}
       </nav>
     </div>
+  );
+};
+
+/** The balance, always in sight; tap it to see the history (Account). */
+const CreditsChip: React.FC = () => {
+  const { t } = useTranslation();
+  const credits = useCredits();
+  if (credits.data == null) return null;
+  const n = credits.data.balance;
+  return (
+    <Link
+      to="/account"
+      title={t('credits.perSecond')}
+      aria-label={t('credits.short', { n })}
+      className={`inline-flex min-h-9 items-center gap-1.5 rounded-xl border px-2.5 text-sm font-semibold transition hover:border-accent/60 ${n < 15 ? 'border-danger/50 text-danger' : 'border-line text-text'}`}
+    >
+      <svg viewBox="0 0 24 24" className="size-4 text-accent" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v10M9.5 9.5h3.75a1.75 1.75 0 0 1 0 3.5h-2.5a1.75 1.75 0 0 0 0 3.5H14.5" />
+      </svg>
+      {n}
+    </Link>
   );
 };
 

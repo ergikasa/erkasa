@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { AspectRatio, LANGUAGES, Language, projectsApi } from '../api/projects';
 import { Alert, Button, Choice, TextArea, useErrorText } from '../components/ui';
+import { useCredits } from '../hooks/useCredits';
 
 const DURATIONS = [15, 30, 45, 60, 90] as const;
 const MAX_IDEA = 1000;
@@ -24,6 +25,8 @@ export const NewVideoPage: React.FC = () => {
   const [ideaError, setIdeaError] = useState<string>();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const balance = useCredits().data?.balance;
+  const tooLong = balance != null && durationSeconds > balance;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,7 +129,13 @@ export const NewVideoPage: React.FC = () => {
         />
 
         <div className="flex flex-col-reverse items-stretch gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-center text-sm text-muted sm:text-left">{t('newVideo.credits', { n: durationSeconds })}</p>
+          <div className="text-center text-sm sm:text-left">
+            <p className="text-muted">
+              {t('newVideo.credits', { n: durationSeconds })}
+              {balance != null ? ` · ${t('credits.youHave', { n: balance })}` : ''}
+            </p>
+            {tooLong ? <p className="mt-1 text-danger">{t('credits.notEnough', { need: durationSeconds, n: balance })}</p> : null}
+          </div>
           <Button type="submit" loading={busy} className="sm:min-w-56">
             {t('newVideo.submit')}
           </Button>

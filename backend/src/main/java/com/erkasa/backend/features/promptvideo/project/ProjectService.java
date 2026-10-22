@@ -12,6 +12,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.erkasa.backend.assets.AssetStorage;
 import com.erkasa.backend.common.error.ApiException;
+import com.erkasa.backend.credits.CreditService;
 import com.erkasa.backend.features.promptvideo.render.RenderJobService;
 import com.erkasa.backend.features.promptvideo.script.ScriptValidator;
 import com.erkasa.backend.features.promptvideo.script.VideoScript;
@@ -65,13 +66,16 @@ public class ProjectService {
     private final AssetStorage storage;
     private final ProjectEvents events;
     private final RenderJobService renders;
+    private final CreditService credits;
     private final TransactionTemplate tx;
     private final ObjectMapper json;
 
     public ProjectService(ProjectRepository projects, JobRepository jobs, JobStepRepository steps,
                           TtsVoiceRepository voices, ScriptJobRunner scriptRunner,
                           AssetsJobRunner assetsRunner, AssetStorage storage, ProjectEvents events,
-                          RenderJobService renders, TransactionTemplate tx, ObjectMapper json) {
+                          RenderJobService renders, TransactionTemplate tx, ObjectMapper json,
+                          CreditService credits) {
+        this.credits = credits;
         this.projects = projects;
         this.jobs = jobs;
         this.steps = steps;
@@ -186,6 +190,8 @@ public class ProjectService {
             if (script == null || script.scenes() == null || script.scenes().isEmpty()) {
                 throw new ApiException(HttpStatus.CONFLICT, "NO_SCRIPT", "This project has no script to approve");
             }
+            // Phase 7: the video is paid here (1 credit per second). 402 rolls everything back.
+            credits.chargeForVideo(userId, projectId, project.getDurationSeconds());
             Job job = jobs.save(Job.queue(projectId, JobKind.ASSETS));
             for (int scene = 0; scene < script.scenes().size(); scene++) {
                 // Motion-graphics scenes are drawn by the render worker: no image to generate (or pay for).
@@ -240,6 +246,10 @@ public class ProjectService {
             }
             List<Job> history = jobs.findByProjectIdOrderByCreatedAtAsc(projectId);
             Job last = history.get(history.size() - 1);
+            if (last.getKind() == JobKind.RENDER || last.getKind() == JobKind.ASSETS) {
+                // the failure gave the credits back; trying again takes them again
+                credits.chargeForVideo(userId, projectId, project.getDurationSeconds());
+            }
             if (last.getKind() == JobKind.RENDER) {
                 // the files are fine, only the MP4 failed: send the same render job again
                 renders.requeueFailed(last);
@@ -352,6 +362,7 @@ public class ProjectService {
         return notify(tx.execute(status -> {
             Project project = lockOwned(userId, projectId);
             project.moveTo(ProjectStatus.CANCELLED);
+            credits.refundVideo(userId, projectId, "Video cancelled");
             log.info("Project {} cancelled", projectId);
             return project;
         }));

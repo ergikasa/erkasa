@@ -29,6 +29,8 @@ export function useLiveProject(id: string, enabled: boolean): Live {
         );
         if (!before || before.status !== s.status) {
           void queryClient.invalidateQueries({ queryKey: ['project', id] });
+          // a failed video gives its credits back
+          if (s.status === 'FAILED' || s.status === 'CANCELLED') void queryClient.invalidateQueries({ queryKey: ['credits'] });
         }
         if (!before || before.status !== s.status || before.done !== s.done) {
           void queryClient.invalidateQueries({ queryKey: ['assets', id] });

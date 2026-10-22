@@ -10,7 +10,7 @@ const login = (access: string, refresh: string) => ({
   expiresIn: 900,
   refreshToken: refresh,
   refreshExpiresIn: 2592000,
-  user: { id: 'u1', email: 'a@b.c', displayName: null, emailVerified: true, role: 'USER' as const, createdAt: '2026-10-01T00:00:00Z' },
+  user: { id: 'u1', email: 'a@b.c', displayName: null, emailVerified: true, role: 'USER' as const, createdAt: '2026-10-01T00:00:00Z', credits: 30 },
 });
 
 describe('api client', () => {

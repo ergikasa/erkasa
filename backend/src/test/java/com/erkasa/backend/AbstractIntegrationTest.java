@@ -34,7 +34,9 @@ import org.testcontainers.containers.wait.strategy.Wait;
                 "erkasa.rate-limit.enabled=false",
                 // Several test contexts share one database: none of them may pick up the others'
                 // running jobs on startup. PipelineRecoveryTests calls recover() by hand.
-                "erkasa.pipeline.recover-on-startup=false"
+                "erkasa.pipeline.recover-on-startup=false",
+                // Many tests approve many videos with one account; CreditTests checks the real rules.
+                "erkasa.credits.signup-bonus=10000"
         })
 public abstract class AbstractIntegrationTest {
 

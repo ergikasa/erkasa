@@ -40,6 +40,10 @@ public class User {
     @Column(name = "google_sub", length = 255)
     private String googleSub;
 
+    /** Balance (phase 7): 1 credit = 1 second of video. Changed only by CreditService. */
+    @Column(nullable = false)
+    private int credits;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -93,6 +97,18 @@ public class User {
     /** The user proved they can read emails sent to this address. */
     public void markEmailVerified() {
         this.emailVerified = true;
+    }
+
+    /** + or - credits. Never below 0 (the database checks it too). Use CreditService, not this. */
+    public void addCredits(int amount) {
+        if (credits + amount < 0) {
+            throw new IllegalStateException("Credits would go below 0");
+        }
+        credits += amount;
+    }
+
+    public int getCredits() {
+        return credits;
     }
 
     /** Stores a new BCrypt hash (never the password itself). */
