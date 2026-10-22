@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '../auth/AuthContext';
 import { routes } from '../App';
 import { setLanguage } from '../i18n';
@@ -12,9 +13,11 @@ const json = (status: number, body: unknown) =>
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   render(
-    <AuthProvider>
-      <RouterProvider router={router} />
-    </AuthProvider>,
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
+    </QueryClientProvider>,
   );
   return router;
 }
@@ -38,8 +41,8 @@ describe('login page', () => {
   });
 
   it('logs in and opens the app', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      json(200, {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) =>
+      String(input).startsWith('/api/projects') ? json(200, []) : json(200, {
         accessToken: 'A',
         tokenType: 'Bearer',
         expiresIn: 900,
@@ -48,6 +51,7 @@ describe('login page', () => {
         user: { id: 'u', email: 'ergi@example.com', displayName: 'Ergi', emailVerified: true, role: 'USER', createdAt: '2026-10-01T00:00:00Z' },
       }),
     );
+
     const router = renderAt('/login');
     await userEvent.type(await screen.findByLabelText('Email'), 'ergi@example.com');
     await userEvent.type(screen.getByLabelText('Password'), 'secret123');

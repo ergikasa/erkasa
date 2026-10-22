@@ -65,6 +65,14 @@ export const sq: Messages = {
     emptyTitle: 'Ende asnjë video',
     emptyText: 'Shkruaj një ide, kontrollo script-in dhe merr një video me zë, titra dhe muzikë.',
     create: 'Krijo videon e parë',
+    newVideo: 'Video e re',
+    loadMore: 'Shfaq më shumë',
+    ago: {
+      now: 'tani',
+      minutes: 'para {{n}} min',
+      hours: 'para {{n}} orësh',
+      days: 'para {{n}} ditësh',
+    },
     hello: 'Përshëndetje {{name}}',
   },
   newVideo: {
@@ -181,6 +189,7 @@ export const sq: Messages = {
     },
     makeVideo: 'Bëj videon',
     makeVideoHint: 'Përdor rreth {{n}} kredite. Zgjat 1 deri në 3 minuta.',
+    renderStuck: 'Ende s\'ka nisur asgjë. A është ndezur render worker-i? (npm run worker)',
     renderingHint: 'Mund ta mbyllësh faqen; videoja vazhdon të bëhet.',
     watch: 'Videoja jote',
     download: 'Shkarko MP4',

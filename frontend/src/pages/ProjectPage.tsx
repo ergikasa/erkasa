@@ -94,11 +94,7 @@ const Stage: React.FC<{ project: Project; live: Live }> = ({ project: p, live })
       );
     case 'RENDERING':
       return (
-        <div className="glow rounded-2xl border border-line p-5 sm:p-8" role="status">
-          <h2 className="text-lg font-semibold">{t('project.rendering')}</h2>
-          <p className="mt-1 mb-5 text-sm text-muted">{t('project.renderingHint')}</p>
-          <Progress done={live.renderPercent ?? 0} total={100} label={t('project.status.RENDERING')} />
-        </div>
+        <Rendering percent={live.renderPercent} />
       );
     case 'DONE':
       return <VideoPanel project={p} />;
@@ -113,6 +109,35 @@ const Stage: React.FC<{ project: Project; live: Live }> = ({ project: p, live })
         </div>
       );
   }
+};
+
+/** How long 0 % may last before we suspect that no render worker is running. */
+const STUCK_MS = 60_000;
+
+const Rendering: React.FC<{ percent: number | null }> = ({ percent }) => {
+  const { t } = useTranslation();
+  const [stuck, setStuck] = useState(false);
+  const started = (percent ?? 0) > 0;
+  useEffect(() => {
+    if (started) {
+      setStuck(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setStuck(true), STUCK_MS);
+    return () => window.clearTimeout(timer);
+  }, [started]);
+  return (
+    <div className="glow rounded-2xl border border-line p-5 sm:p-8" role="status">
+      <h2 className="text-lg font-semibold">{t('project.rendering')}</h2>
+      <p className="mt-1 mb-5 text-sm text-muted">{t('project.renderingHint')}</p>
+      <Progress done={percent ?? 0} total={100} label={t('project.status.RENDERING')} />
+      {stuck ? (
+        <div className="mt-5">
+          <Alert tone="info">{t('project.renderStuck')}</Alert>
+        </div>
+      ) : null}
+    </div>
+  );
 };
 
 /** All files are ready: the big "Make the video" button. */

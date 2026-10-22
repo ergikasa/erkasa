@@ -63,6 +63,14 @@ export const en = {
     emptyTitle: 'No videos yet',
     emptyText: 'Write an idea, check the script, and get a video with voice, captions and music.',
     create: 'Create your first video',
+    newVideo: 'New video',
+    loadMore: 'Show more',
+    ago: {
+      now: 'just now',
+      minutes: '{{n}} min ago',
+      hours: '{{n}} h ago',
+      days: '{{n}} d ago',
+    },
     hello: 'Hi {{name}}',
   },
   newVideo: {
@@ -179,6 +187,7 @@ export const en = {
     },
     makeVideo: 'Make the video',
     makeVideoHint: 'Uses about {{n}} credits. Takes 1 to 3 minutes.',
+    renderStuck: 'Nothing has started yet. Is the render worker running? (npm run worker)',
     renderingHint: 'You can leave this page; the video keeps rendering.',
     watch: 'Your video',
     download: 'Download MP4',
