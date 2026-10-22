@@ -8,7 +8,7 @@ import { GOOGLE_CLIENT_ID } from './components/GoogleButton';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from './pages/PasswordPages';
-import { AccountPage, HomePage, NotFoundPage } from './pages/AppPages';
+import { AccountPage, ErrorPage, HomePage, NotFoundPage } from './pages/AppPages';
 import { NewVideoPage } from './pages/NewVideoPage';
 import { ProjectPage } from './pages/ProjectPage';
 
@@ -22,11 +22,18 @@ export const routes = [
   {
     path: '/',
     element: <RequireAuth><AppLayout /></RequireAuth>,
+    errorElement: <ErrorPage />,
     children: [
-      { index: true, element: <HomePage /> },
+      {
+        // an error inside a page keeps the header and tab bar, so you can go on
+        errorElement: <ErrorPage />,
+        children: [
+          { index: true, element: <HomePage /> },
       { path: 'new', element: <NewVideoPage /> },
       { path: 'projects/:id', element: <ProjectPage /> },
-      { path: 'account', element: <AccountPage /> },
+          { path: 'account', element: <AccountPage /> },
+        ],
+      },
     ],
   },
   { path: '*', element: <NotFoundPage /> },

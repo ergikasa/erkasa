@@ -1,8 +1,8 @@
 import React from 'react';
-import { Link } from 'react-router';
+import { Link, useRouteError } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
-import { Button } from '../components/ui';
+import { Button, buttonClass } from '../components/ui';
 
 /** 6.1: the empty state. The real list of videos comes in 6.4. */
 export const HomePage: React.FC = () => {
@@ -23,8 +23,8 @@ export const HomePage: React.FC = () => {
         </div>
         <h2 className="mt-4 text-lg font-semibold">{t('home.emptyTitle')}</h2>
         <p className="mt-2 max-w-sm text-muted">{t('home.emptyText')}</p>
-        <Link to="/new" className="mt-6 w-full sm:w-auto">
-          <Button full>{t('home.create')}</Button>
+        <Link to="/new" className={buttonClass('primary', false, 'mt-6 w-full sm:w-auto')}>
+          {t('home.create')}
         </Link>
       </div>
     </section>
@@ -80,9 +80,30 @@ export const NotFoundPage: React.FC = () => {
     <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-4 text-center">
       <p className="text-6xl font-black text-accent">404</p>
       <h1 className="text-xl font-semibold">{t('notFound.title')}</h1>
-      <Link to="/">
-        <Button variant="secondary">{t('notFound.back')}</Button>
+      <Link to="/" className={buttonClass('secondary')}>
+        {t('notFound.back')}
       </Link>
+    </div>
+  );
+};
+
+/** Shown instead of a white screen when a page breaks. The error goes to the console for us. */
+export const ErrorPage: React.FC = () => {
+  const { t } = useTranslation();
+  const error = useRouteError();
+  console.error(error);
+  return (
+    <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-4 px-4 text-center">
+      <h1 className="text-xl font-semibold">{t('errors.page')}</h1>
+      <p className="max-w-sm text-muted">{t('errors.pageHint')}</p>
+      <div className="flex gap-3">
+        <button type="button" onClick={() => window.location.reload()} className={buttonClass('primary')}>
+          {t('errors.reload')}
+        </button>
+        <Link to="/" className={buttonClass('secondary')}>
+          {t('notFound.back')}
+        </Link>
+      </div>
     </div>
   );
 };

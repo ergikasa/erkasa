@@ -1,4 +1,4 @@
-import { api } from './client';
+import { api, apiBlob } from './client';
 
 /* The /api/projects endpoints (backend: ProjectController). */
 
@@ -90,6 +90,24 @@ export type CreateProject = {
   aspectRatio: AspectRatio;
 };
 
+export type StepStatus = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'SKIPPED';
+
+export type StepView = {
+  status: StepStatus;
+  attempts: number;
+  /** where to download the file once SUCCEEDED */
+  url: string | null;
+  meta: Record<string, unknown> | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+};
+
+/** scenes count from 0; image is null for motion-graphics scenes */
+export type SceneAssets = { scene: number; image: StepView | null; voice: StepView | null };
+export type Assets = { projectId: string; done: number; total: number; scenes: SceneAssets[] };
+
+export type RedoScene = { image?: boolean; voice?: boolean; imagePrompt?: string; narration?: string };
+
 export const projectsApi = {
   create: (body: CreateProject) => api<Project>('/api/projects', { body }),
   list: (limit = 20) => api<Project[]>(`/api/projects?limit=${limit}`),
@@ -99,6 +117,12 @@ export const projectsApi = {
   approve: (id: string) => api<Project>(`/api/projects/${id}/approve`, { method: 'POST' }),
   cancel: (id: string) => api<Project>(`/api/projects/${id}/cancel`, { method: 'POST' }),
   retry: (id: string) => api<Project>(`/api/projects/${id}/retry`, { method: 'POST' }),
+  assets: (id: string) => api<Assets>(`/api/projects/${id}/assets`),
+  redoScene: (id: string, scene: number, body: RedoScene) => api<Project>(`/api/projects/${id}/scenes/${scene}/redo`, { body }),
+  render: (id: string) => api<Project>(`/api/projects/${id}/render`, { method: 'POST' }),
+  /** the MP4, the voice or the image of a scene, as a Blob (needs the login token) */
+  file: (path: string, signal?: AbortSignal) => apiBlob(path, signal),
+  videoPath: (id: string) => `/api/projects/${id}/video`,
 };
 
 /** Words in a text, the way the backend counts them. */

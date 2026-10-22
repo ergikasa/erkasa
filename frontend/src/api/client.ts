@@ -177,3 +177,21 @@ async function doRefresh(): Promise<boolean> {
     return false;
   }
 }
+
+/** Headers for calls that do not go through api() (live events). */
+export function authHeaders(): Record<string, string> {
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+}
+
+/** A file from the API (voice, image, video) as a Blob, with the same token handling as api(). */
+export async function apiBlob(path: string, signal?: AbortSignal): Promise<Blob> {
+  const get = () => fetch(BASE + path, { headers: authHeaders(), signal });
+  let res = await get();
+  if (res.status === 401 && session.refreshToken() && (await refreshOnce())) res = await get();
+  if (!res.ok) {
+    await read(res); // throws the ApiError
+  }
+  return res.blob();
+}
+
+export const apiUrl = (path: string) => BASE + path;

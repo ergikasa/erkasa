@@ -5,10 +5,16 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '../api/client';
 import { Project, VideoScript, isWorking, projectsApi } from '../api/projects';
 import { ScriptEditor, cleanScript } from '../components/ScriptEditor';
+import { AssetsBoard, Progress } from '../components/AssetsBoard';
+import { VideoPanel } from '../components/VideoPanel';
+import { Live, useLiveProject } from '../hooks/useLiveProject';
 import { Alert, Button, Spinner, useErrorText } from '../components/ui';
 
-/** How often the page asks for news while the backend works (live updates come in 6.3). */
-const POLL_MS = 2000;
+/**
+ * A safety net only: live events (SSE) update the page at once. If the live connection is
+ * down, the page still asks for news this often while the backend works.
+ */
+const POLL_MS = 10_000;
 
 export const ProjectPage: React.FC = () => {
   const { id = '' } = useParams();
@@ -19,6 +25,8 @@ export const ProjectPage: React.FC = () => {
     queryFn: () => projectsApi.get(id),
     refetchInterval: (q) => (q.state.data && isWorking(q.state.data.status) ? POLL_MS : false),
   });
+  const status = query.data?.status;
+  const live = useLiveProject(id, !!status && status !== 'DONE' && status !== 'CANCELLED');
 
   if (query.isPending) {
     return (
@@ -41,38 +49,105 @@ export const ProjectPage: React.FC = () => {
       <BackLink />
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <StatusBadge status={p.status} />
+        {isWorking(p.status) ? (
+          <span className={`inline-flex items-center gap-1.5 text-xs ${live.connected ? 'text-success' : 'text-muted'}`}>
+            <span className={`size-1.5 rounded-full ${live.connected ? 'animate-pulse bg-success' : 'bg-muted'}`} aria-hidden />
+            {live.connected ? t('project.live') : t('project.reconnecting')}
+          </span>
+        ) : null}
         <span className="text-xs text-muted">
           {t(`languages.${p.language}`)} · {p.durationSeconds} s · {p.aspectRatio === 'PORTRAIT' ? '9:16' : p.aspectRatio === 'LANDSCAPE' ? '16:9' : '1:1'}
         </span>
       </div>
       <h1 className="mt-2 text-2xl font-bold tracking-tight break-words sm:text-3xl">{p.title || p.idea}</h1>
       <div className="mt-6">
-        <Stage project={p} />
+        <Stage project={p} live={live} />
       </div>
     </section>
   );
 };
 
-const Stage: React.FC<{ project: Project }> = ({ project: p }) => {
+const Stage: React.FC<{ project: Project; live: Live }> = ({ project: p, live }) => {
   const { t } = useTranslation();
   switch (p.status) {
     case 'SCRIPT_PENDING':
       return <Working title={t('project.writing')} hint={t('project.writingHint')} />;
     case 'SCRIPT_REVIEW':
-      return <ScriptReview project={p} />;
+      // the live event can say "script ready" a moment before the script itself has arrived
+      return p.script ? <ScriptReview project={p} /> : <Working title={t('project.writing')} hint={t('project.writingHint')} />;
     case 'ASSETS_PENDING':
-      return <Working title={t('project.making')} hint={t('project.makingHint')} />;
+      return (
+        <div className="space-y-5">
+          <div>
+            <h2 className="text-lg font-semibold">{t('project.making')}</h2>
+            <p className="mt-1 text-sm text-muted">{t('project.makingHint')}</p>
+          </div>
+          <AssetsBoard project={p} live={live} />
+        </div>
+      );
     case 'ASSETS_READY':
-      return <Alert tone="success">{t('project.ready')}</Alert>;
+      return (
+        <div className="space-y-6">
+          <RenderStart project={p} />
+          <AssetsBoard project={p} live={live} />
+        </div>
+      );
     case 'RENDERING':
-      return <Working title={t('project.rendering')} />;
+      return (
+        <div className="glow rounded-2xl border border-line p-5 sm:p-8" role="status">
+          <h2 className="text-lg font-semibold">{t('project.rendering')}</h2>
+          <p className="mt-1 mb-5 text-sm text-muted">{t('project.renderingHint')}</p>
+          <Progress done={live.renderPercent ?? 0} total={100} label={t('project.status.RENDERING')} />
+        </div>
+      );
     case 'DONE':
-      return <Alert tone="success">{t('project.done')}</Alert>;
+      return <VideoPanel project={p} />;
     case 'CANCELLED':
       return <Alert tone="info">{t('project.cancelled')}</Alert>;
     case 'FAILED':
-      return <Failed project={p} />;
+      return (
+        <div className="space-y-6">
+          <Failed project={p} />
+          {/* failed while making files: show which scene broke */}
+          {p.jobs.some((j) => j.kind === 'ASSETS') && !p.jobs.some((j) => j.kind === 'RENDER') ? <AssetsBoard project={p} live={live} /> : null}
+        </div>
+      );
   }
+};
+
+/** All files are ready: the big "Make the video" button. */
+const RenderStart: React.FC<{ project: Project }> = ({ project }) => {
+  const { t } = useTranslation();
+  const errorText = useErrorText();
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const start = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      queryClient.setQueryData(['project', project.id], await projectsApi.render(project.id));
+    } catch (e) {
+      setError(errorText(e));
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="glow rounded-2xl border border-accent/30 p-5 sm:flex sm:items-center sm:gap-6 sm:p-6">
+      <div className="flex-1">
+        <h2 className="text-lg font-semibold">{t('project.ready')}</h2>
+        <p className="mt-1 text-sm text-muted">{t('project.makeVideoHint', { n: project.estimatedCredits })}</p>
+        {error ? (
+          <div className="mt-3">
+            <Alert>{error}</Alert>
+          </div>
+        ) : null}
+      </div>
+      <Button onClick={() => void start()} loading={busy} className="mt-4 w-full sm:mt-0 sm:w-auto sm:min-w-48">
+        {t('project.makeVideo')}
+      </Button>
+    </div>
+  );
 };
 
 const Working: React.FC<{ title: string; hint?: string }> = ({ title, hint }) => (

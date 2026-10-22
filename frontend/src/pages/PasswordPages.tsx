@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { authApi } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
 import { AuthLayout } from '../components/layouts';
-import { Alert, Button, PasswordField, TextField, useErrorText } from '../components/ui';
+import { Alert, Button, PasswordField, TextField, buttonClass, useErrorText } from '../components/ui';
 import { isEmail, passwordOk } from './validate';
 
 export const ForgotPasswordPage: React.FC = () => {
@@ -98,8 +98,8 @@ export const ResetPasswordPage: React.FC = () => {
       ) : done ? (
         <div className="space-y-4">
           <Alert tone="success">{t('auth.reset.done')}</Alert>
-          <Link to="/login" className="block">
-            <Button full>{t('auth.login.submit')}</Button>
+          <Link to="/login" className={buttonClass('primary', true)}>
+            {t('auth.login.submit')}
           </Link>
         </div>
       ) : (

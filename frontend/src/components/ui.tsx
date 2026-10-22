@@ -5,30 +5,30 @@ import { ApiError } from '../api/client';
 /* Small building blocks. Mobile first: every tap target is at least 44 px high. */
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  variant?: Variant;
   loading?: boolean;
   full?: boolean;
 };
 
-export const Button: React.FC<ButtonProps> = ({ variant = 'primary', loading, full, className = '', children, disabled, ...rest }) => {
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
+
+/** The look of a button, also for links that look like buttons (never put a <button> inside a link). */
+export function buttonClass(variant: Variant = 'primary', full = false, extra = ''): string {
   const styles = {
     primary: 'bg-gradient-to-r from-accent to-accent-2 text-bg font-semibold hover:brightness-110',
     secondary: 'border border-line bg-surface-2 text-text hover:border-accent/60',
     ghost: 'text-muted hover:text-text hover:bg-surface-2',
     danger: 'border border-danger/40 text-danger hover:bg-danger/10',
   }[variant];
-  return (
-    <button
-      {...rest}
-      disabled={disabled || loading}
-      aria-busy={loading || undefined}
-      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-[15px] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${styles} ${full ? 'w-full' : ''} ${className}`}
-    >
-      {loading ? <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : null}
-      {children}
-    </button>
-  );
-};
+  return `inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-[15px] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${styles} ${full ? 'w-full' : ''} ${extra}`;
+}
+
+export const Button: React.FC<ButtonProps> = ({ variant = 'primary', loading, full, className = '', children, disabled, ...rest }) => (
+  <button {...rest} disabled={disabled || loading} aria-busy={loading || undefined} className={buttonClass(variant, full, className)}>
+    {loading ? <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : null}
+    {children}
+  </button>
+);
 
 type FieldProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'id'> & {
   label: string;
