@@ -4,6 +4,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.erkasa.backend.jobs.VideoOptions.Template;
+
 /**
  * The JSON Schema the LLM must follow for a script.
  *
@@ -19,12 +21,18 @@ public final class ScriptSchema {
     private ScriptSchema() {
     }
 
+    /** The schema for CLASSIC videos (as before phase 9). */
     public static Map<String, Object> schema() {
+        return schema(Template.CLASSIC);
+    }
+
+    /** The schema for one template: "visual.type" may only be one of that template's scenes. */
+    public static Map<String, Object> schema(Template template) {
         Map<String, Object> sceneProps = new LinkedHashMap<>();
         sceneProps.put("narration", Map.of("type", "string"));
         sceneProps.put("onScreenText", Map.of("type", "string"));
         sceneProps.put("imagePrompt", Map.of("type", "string"));
-        sceneProps.put("visual", visual());
+        sceneProps.put("visual", visual(template));
         sceneProps.put("sfx", sfx());
 
         Map<String, Object> scene = new LinkedHashMap<>();
@@ -60,12 +68,11 @@ public final class ScriptSchema {
     }
 
     /** The flat visual object (see {@link Visual}): every field present, unused ones empty. */
-    private static Map<String, Object> visual() {
+    private static Map<String, Object> visual(Template template) {
         Map<String, Object> str = Map.of("type", "string");
         Map<String, Object> strings = Map.of("type", "array", "items", str);
         Map<String, Object> props = new LinkedHashMap<>();
-        props.put("type", Map.of("type", "string", "enum",
-                List.of("image", "title", "flow", "list", "stat", "compare", "code", "cta")));
+        props.put("type", Map.of("type", "string", "enum", SceneCatalog.types(template)));
         props.put("title", str);
         props.put("subtitle", str);
         props.put("items", strings);
@@ -81,6 +88,11 @@ public final class ScriptSchema {
         props.put("language", str);
         props.put("text", str);
         props.put("handle", str);
+        // 9.2: fields of the INFOGRAPHIC and ANIMATED_2D scenes (empty for the others)
+        props.put("values", Map.of("type", "array", "items", Map.of("type", "number")));
+        props.put("labels", strings);
+        props.put("icons", strings);
+        props.put("pose", str);
 
         Map<String, Object> visual = new LinkedHashMap<>();
         visual.put("type", "object");

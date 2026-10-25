@@ -57,6 +57,7 @@ export const PURPOSE_DEFAULTS: Record<Purpose, { template: Template; tone: Tone;
   BUSINESS: { template: 'INFOGRAPHIC', tone: 'PROFESSIONAL', durationSeconds: 60, aspectRatio: 'LANDSCAPE' },
 };
 
+/** The CLASSIC scene types (the editor can change these). 9.3/9.4 add the template scenes. */
 export const VISUAL_TYPES = ['image', 'title', 'flow', 'list', 'stat', 'compare', 'code', 'cta'] as const;
 export type VisualType = (typeof VISUAL_TYPES)[number];
 
@@ -78,6 +79,11 @@ export type Visual = {
   language: string;
   text: string;
   handle: string;
+  /* 9.2: fields of the INFOGRAPHIC and ANIMATED_2D scenes (missing in older scripts) */
+  values?: number[];
+  labels?: string[];
+  icons?: string[];
+  pose?: string;
 };
 
 export type SoundCue = { sound: string; onWord: string };

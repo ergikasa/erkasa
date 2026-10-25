@@ -3,6 +3,8 @@ package com.erkasa.backend.features.promptvideo.script;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.erkasa.backend.jobs.VideoOptions.Template;
+
 /**
  * Checks the rules the JSON schema cannot express. Returns a list of problems in plain English;
  * empty = the script is fine. The problems are sent back to the LLM so it can fix them.
@@ -19,7 +21,13 @@ public final class ScriptValidator {
     private ScriptValidator() {
     }
 
+    /** Checks a CLASSIC script (every scene type of the classic template is allowed). */
     public static List<String> validate(VideoScript script, int targetSeconds) {
+        return validate(script, targetSeconds, Template.CLASSIC);
+    }
+
+    /** Checks a script written for one template: scenes may only use that template's types (9.2). */
+    public static List<String> validate(VideoScript script, int targetSeconds, Template template) {
         List<String> problems = new ArrayList<>();
         if (script == null) {
             problems.add("The script is empty.");
@@ -45,6 +53,11 @@ public final class ScriptValidator {
             }
             if (s.needsImage() && isBlank(s.imagePrompt())) {
                 problems.add("Scene " + n + " has no imagePrompt.");
+            }
+            String type = Visual.typeOf(s.visual());
+            if (Visual.TYPES.contains(type) && !SceneCatalog.types(template).contains(type)) {
+                problems.add("Scene " + n + " uses \"" + type + "\", which this video style does not have; use one of "
+                        + SceneCatalog.types(template) + ".");
             }
             problems.addAll(VisualRules.check(s.visual(), n));
             problems.addAll(soundProblems(s, n));

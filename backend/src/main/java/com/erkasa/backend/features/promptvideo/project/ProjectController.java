@@ -98,7 +98,7 @@ public class ProjectController {
             VideoOptions.CaptionStyle captionStyle,
             VideoOptions.CaptionPosition captionPosition) {
 
-        VideoOptions complete() {
+        public VideoOptions complete() {
             return VideoOptions.withDefaults(purpose, template, audience, tone, theme, voiceSpeed,
                     captionStyle, captionPosition);
         }

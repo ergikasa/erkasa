@@ -58,6 +58,11 @@ public record VideoOptions(Purpose purpose,
                 captionPosition == null ? CaptionPosition.BOTTOM : captionPosition);
     }
 
+    /** The same choices with another template (used while a template is not ready yet, see SceneCatalog). */
+    public VideoOptions withTemplate(Template other) {
+        return new VideoOptions(purpose, other, audience, tone, theme, voiceSpeed, captionStyle, captionPosition);
+    }
+
     /** What the user wants to make (the cards in step 1 of the wizard). */
     public enum Purpose {
         EXPLAINER(Template.ANIMATED_2D, Tone.EDUCATIONAL),

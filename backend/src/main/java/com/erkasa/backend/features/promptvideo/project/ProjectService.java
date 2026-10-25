@@ -14,6 +14,7 @@ import com.erkasa.backend.assets.AssetStorage;
 import com.erkasa.backend.common.error.ApiException;
 import com.erkasa.backend.credits.CreditService;
 import com.erkasa.backend.features.promptvideo.render.RenderJobService;
+import com.erkasa.backend.features.promptvideo.script.SceneCatalog;
 import com.erkasa.backend.features.promptvideo.script.ScriptValidator;
 import com.erkasa.backend.features.promptvideo.script.VideoScript;
 import com.erkasa.backend.jobs.InvalidTransitionException;
@@ -90,6 +91,11 @@ public class ProjectService {
         this.json = json;
     }
 
+    /** The template the project's scenes are written for (CLASSIC while the chosen one is not ready, 9.2). */
+    private static VideoOptions.Template sceneTemplate(Project project) {
+        return SceneCatalog.effective(project.options().template());
+    }
+
     /** @param options the wizard choices, already completed with defaults (VideoOptions.withDefaults) */
     public record NewProject(String idea, Language language, int durationSeconds,
                              AspectRatio aspectRatio, String voiceId, VideoOptions options) {
@@ -145,7 +151,7 @@ public class ProjectService {
                 throw new ApiException(HttpStatus.CONFLICT, "INVALID_STATE",
                         "The script can only be edited while it is in review (now " + project.getStatus() + ")");
             }
-            List<String> problems = ScriptValidator.validate(script, project.getDurationSeconds());
+            List<String> problems = ScriptValidator.validate(script, project.getDurationSeconds(), sceneTemplate(project));
             if (!problems.isEmpty()) {
                 throw new InvalidScriptException(problems);
             }
@@ -334,7 +340,7 @@ public class ProjectService {
                         old.visual(),
                         old.sfx()));
                 VideoScript changed = new VideoScript(script.title(), script.musicMood(), scenes);
-                List<String> problems = ScriptValidator.validate(changed, project.getDurationSeconds());
+                List<String> problems = ScriptValidator.validate(changed, project.getDurationSeconds(), sceneTemplate(project));
                 if (!problems.isEmpty()) {
                     throw new InvalidScriptException(problems);
                 }

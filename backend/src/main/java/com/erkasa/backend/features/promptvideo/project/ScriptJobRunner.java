@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.erkasa.backend.features.promptvideo.script.ScriptGenerator;
+import com.erkasa.backend.features.promptvideo.script.SceneCatalog;
 import com.erkasa.backend.features.promptvideo.script.ScriptRequest;
 import com.erkasa.backend.features.promptvideo.script.VideoScript;
 import com.erkasa.backend.jobs.Job;
@@ -19,6 +20,7 @@ import com.erkasa.backend.jobs.JobStep;
 import com.erkasa.backend.jobs.JobStepRepository;
 import com.erkasa.backend.jobs.PipelineWorkers;
 import com.erkasa.backend.jobs.Project;
+import com.erkasa.backend.jobs.VideoOptions;
 import com.erkasa.backend.jobs.ProjectRepository;
 import com.erkasa.backend.jobs.ProjectStatus;
 import com.erkasa.backend.jobs.StepStatus;
@@ -110,8 +112,12 @@ public class ScriptJobRunner {
         }
         job.moveTo(JobStatus.RUNNING);
         stepOf(jobId).moveTo(StepStatus.RUNNING);
+        // 9.2: a template the render worker cannot draw yet falls back to CLASSIC scenes;
+        // purpose, audience and tone are still used.
+        VideoOptions options = project.options();
         return new ScriptRequest(project.getIdea(), project.getLanguage(),
-                project.getDurationSeconds(), project.getAspectRatio());
+                project.getDurationSeconds(), project.getAspectRatio(),
+                options.withTemplate(SceneCatalog.effective(options.template())));
     }
 
     private void succeed(UUID jobId, String title, String scriptJson) {

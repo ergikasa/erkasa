@@ -27,6 +27,14 @@ import java.util.Set;
  * @param language   code: shown in the window title, e.g. "deploy.yml"
  * @param text       cta: the closing line
  * @param handle     cta: the button text, e.g. "@erkasa"
+ * @param values     bars: one number per item (9.2)
+ * @param labels     timeline: one date / step label per item (9.2)
+ * @param icons      Lucide icon names from SceneCatalog.ICONS: iconGrid, iconLink (one per item),
+ *                   metaphor, beforeAfter (two), zoom (one), character (0-2) (9.2)
+ * @param pose       character: one of SceneCatalog.POSES (9.2)
+ *
+ * The types and their fields per template are listed in {@link SceneCatalog}. Scripts written
+ * before 9.2 have no values / labels / icons / pose: they are null and read as empty.
  */
 public record Visual(String type,
                      String title,
@@ -43,10 +51,30 @@ public record Visual(String type,
                      String code,
                      String language,
                      String text,
-                     String handle) {
+                     String handle,
+                     List<Double> values,
+                     List<String> labels,
+                     List<String> icons,
+                     String pose) {
 
     public static final String IMAGE = "image";
-    public static final Set<String> TYPES = Set.of("image", "title", "flow", "list", "stat", "compare", "code", "cta");
+    /** Every type of every template (which template may use which: SceneCatalog). */
+    public static final Set<String> TYPES = Set.of("image", "title", "flow", "list", "stat", "compare", "code", "cta",
+            "bars", "timeline", "cycle", "iconGrid",
+            "character", "iconLink", "metaphor", "beforeAfter", "zoom");
+
+    /** A visual without the 9.2 fields (the shape of every visual before templates). */
+    public Visual(String type, String title, String subtitle, List<String> items, Double value, String prefix,
+                  String suffix, String label, String leftTitle, String rightTitle, List<String> left,
+                  List<String> right, String code, String language, String text, String handle) {
+        this(type, title, subtitle, items, value, prefix, suffix, label, leftTitle, rightTitle, left, right,
+                code, language, text, handle, List.of(), List.of(), List.of(), "");
+    }
+
+    /** The visual type, "image" for scripts written before visuals existed. */
+    public static String typeOf(Visual v) {
+        return v == null || v.type() == null ? IMAGE : v.type();
+    }
 
     /** The scene shows an AI image (also for old scripts written before visuals existed). */
     public static boolean isImage(Visual v) {

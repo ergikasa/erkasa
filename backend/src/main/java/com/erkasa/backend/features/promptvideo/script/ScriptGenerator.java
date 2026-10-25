@@ -45,7 +45,7 @@ public class ScriptGenerator {
                     ScriptPrompts.system(request),
                     ScriptPrompts.user(request, problems),
                     MAX_TOKENS,
-                    ScriptSchema.schema());
+                    ScriptSchema.schema(request.template()));
             LlmResponse response = gateway.generateText(llmRequest, ctx);
 
             VideoScript script;
@@ -57,10 +57,10 @@ public class ScriptGenerator {
                 continue;
             }
 
-            problems = ScriptValidator.validate(script, request.durationSeconds());
+            problems = ScriptValidator.validate(script, request.durationSeconds(), request.template());
             if (problems.isEmpty()) {
-                log.info("Script ready: {} scenes, {} words (attempt {})",
-                        script.scenes().size(), script.narrationWords(), attempt);
+                log.info("Script ready: {} scenes, {} words, template {} (attempt {})",
+                        script.scenes().size(), script.narrationWords(), request.template(), attempt);
                 return script;
             }
             log.warn("Script attempt {} had problems: {}", attempt, problems);
