@@ -27,6 +27,7 @@ import com.erkasa.backend.jobs.JobStepRepository;
 import com.erkasa.backend.jobs.Project;
 import com.erkasa.backend.jobs.ProjectRepository;
 import com.erkasa.backend.jobs.ProjectStatus;
+import com.erkasa.backend.jobs.VideoOptions;
 import com.erkasa.backend.jobs.StepType;
 import com.erkasa.backend.providers.AspectRatio;
 import com.erkasa.backend.providers.Language;
@@ -89,8 +90,9 @@ public class ProjectService {
         this.json = json;
     }
 
+    /** @param options the wizard choices, already completed with defaults (VideoOptions.withDefaults) */
     public record NewProject(String idea, Language language, int durationSeconds,
-                             AspectRatio aspectRatio, String voiceId) {
+                             AspectRatio aspectRatio, String voiceId, VideoOptions options) {
     }
 
     /** Saves the project and its first SCRIPT job, then starts writing the script in the background. */
@@ -101,10 +103,12 @@ public class ProjectService {
                     "Voice " + voiceId + " is not available for " + input.language());
         }
         AspectRatio ratio = input.aspectRatio() == null ? AspectRatio.PORTRAIT : input.aspectRatio();
+        VideoOptions options = input.options() == null ? VideoOptions.withDefaults(
+                null, null, null, null, null, null, null, null) : input.options();
 
         Created created = tx.execute(status -> {
             Project project = projects.save(Project.create(userId, input.idea().strip(), input.language(),
-                    input.durationSeconds(), ratio, voiceId));
+                    input.durationSeconds(), ratio, voiceId, options));
             Job job = queueScriptJob(project.getId());
             return new Created(project, job.getId());
         });

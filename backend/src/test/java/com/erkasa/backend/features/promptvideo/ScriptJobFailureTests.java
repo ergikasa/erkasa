@@ -71,7 +71,7 @@ class ScriptJobFailureTests extends AbstractIntegrationTest {
                         new VideoScript.Scene("Three.", "", "c"))));
         UUID user = newUser();
 
-        Project created = service.create(user, new ProjectService.NewProject("idea", Language.EN, 30, null, null));
+        Project created = service.create(user, new ProjectService.NewProject("idea", Language.EN, 30, null, null, null));
         Project failed = waitFor(created.getId(), ProjectStatus.FAILED);
 
         assertThat(failed.getErrorCode()).isEqualTo("TIMEOUT");
@@ -97,7 +97,7 @@ class ScriptJobFailureTests extends AbstractIntegrationTest {
         when(scripts.generate(any(), any()))
                 .thenThrow(new ProviderException("anthropic", "TIMEOUT", "no answer", true, null));
         UUID user = newUser();
-        Project p = service.create(user, new ProjectService.NewProject("idea", Language.EN, 30, null, null));
+        Project p = service.create(user, new ProjectService.NewProject("idea", Language.EN, 30, null, null, null));
 
         for (int i = 0; i < 4; i++) {
             waitFor(p.getId(), ProjectStatus.FAILED);

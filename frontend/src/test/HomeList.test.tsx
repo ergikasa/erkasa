@@ -5,6 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '../auth/AuthContext';
 import { routes } from '../App';
+import { testOptions } from './fixtures';
 import type { Project } from '../api/projects';
 
 /* 6.4: "Your videos" lists the projects, newest first, and opens one. */
@@ -14,7 +15,7 @@ const login = { accessToken: 'A', tokenType: 'Bearer', expiresIn: 900, refreshTo
 
 const brief = (id: string, patch: Partial<Project>): Project => ({
   id, status: 'DONE', idea: 'idea ' + id, language: 'EN', durationSeconds: 30, aspectRatio: 'PORTRAIT', voiceId: null,
-  title: null, script: null, estimatedCredits: 30, errorCode: null, errorMessage: null,
+  options: testOptions, title: null, script: null, estimatedCredits: 30, errorCode: null, errorMessage: null,
   createdAt: new Date(Date.now() - 5 * 60_000).toISOString(), updatedAt: '', jobs: [], ...patch,
 });
 

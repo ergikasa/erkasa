@@ -46,6 +46,39 @@ public class Project {
     @Column(name = "voice_id", length = 100)
     private String voiceId;
 
+    // ---- the wizard choices (V11, phase 9.1); read them together with options() ----
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private VideoOptions.Purpose purpose;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private VideoOptions.Template template;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 15)
+    private VideoOptions.Audience audience;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 15)
+    private VideoOptions.Tone tone;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 15)
+    private VideoOptions.Theme theme;
+
+    @Column(name = "voice_speed", nullable = false)
+    private int voiceSpeed;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "caption_style", nullable = false, length = 15)
+    private VideoOptions.CaptionStyle captionStyle;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "caption_position", nullable = false, length = 10)
+    private VideoOptions.CaptionPosition captionPosition;
+
     @Column(length = 200)
     private String title;
 
@@ -73,9 +106,15 @@ public class Project {
     protected Project() {
     }
 
-    /** A new project starts by waiting for its script. */
+    /** A new project with the classic options (how videos were made before phase 9). */
     public static Project create(UUID userId, String idea, Language language, int durationSeconds,
                                  AspectRatio aspectRatio, String voiceId) {
+        return create(userId, idea, language, durationSeconds, aspectRatio, voiceId, VideoOptions.classic());
+    }
+
+    /** A new project starts by waiting for its script. */
+    public static Project create(UUID userId, String idea, Language language, int durationSeconds,
+                                 AspectRatio aspectRatio, String voiceId, VideoOptions options) {
         Project p = new Project();
         p.id = UUID.randomUUID();
         p.userId = userId;
@@ -84,6 +123,14 @@ public class Project {
         p.durationSeconds = durationSeconds;
         p.aspectRatio = aspectRatio;
         p.voiceId = voiceId;
+        p.purpose = options.purpose();
+        p.template = options.template();
+        p.audience = options.audience();
+        p.tone = options.tone();
+        p.theme = options.theme();
+        p.voiceSpeed = options.voiceSpeed();
+        p.captionStyle = options.captionStyle();
+        p.captionPosition = options.captionPosition();
         p.status = ProjectStatus.SCRIPT_PENDING;
         return p;
     }
@@ -150,6 +197,11 @@ public class Project {
 
     public String getVoiceId() {
         return voiceId;
+    }
+
+    /** All wizard choices in one object. */
+    public VideoOptions options() {
+        return new VideoOptions(purpose, template, audience, tone, theme, voiceSpeed, captionStyle, captionPosition);
     }
 
     public String getTitle() {

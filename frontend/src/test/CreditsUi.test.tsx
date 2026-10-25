@@ -51,6 +51,8 @@ describe('credits in the app', () => {
 
   it('warns on "New video" when the chosen length costs more than the balance', async () => {
     renderAt('/new');
+    // the short-form card starts at 30 s, which the balance covers
+    await userEvent.click(await screen.findByRole('button', { name: /Short-form video/ }));
     expect(await screen.findByText(/You have 30 credits/)).toBeInTheDocument();
     expect(screen.queryByText(/This video needs/)).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('radio', { name: '60 s' }));

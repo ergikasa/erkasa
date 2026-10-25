@@ -20,6 +20,43 @@ export const MAX_DURATION = 90;
 /** ScriptValidator.WORDS_PER_SECOND: how fast the voice speaks */
 export const WORDS_PER_SECOND = 2.5;
 
+/* The "New video" wizard choices (backend: VideoOptions, phase 9.1). */
+export const PURPOSES = ['EXPLAINER', 'SHORT_FORM', 'BUSINESS'] as const;
+export type Purpose = (typeof PURPOSES)[number];
+export const TEMPLATES = ['ANIMATED_2D', 'INFOGRAPHIC', 'CLASSIC'] as const;
+export type Template = (typeof TEMPLATES)[number];
+export const AUDIENCES = ['BEGINNER', 'INTERMEDIATE', 'EXPERT'] as const;
+export type Audience = (typeof AUDIENCES)[number];
+export const TONES = ['EDUCATIONAL', 'ENTERTAINING', 'PROFESSIONAL'] as const;
+export type Tone = (typeof TONES)[number];
+export const THEMES = ['DARK', 'LIGHT', 'VIBRANT'] as const;
+export type Theme = (typeof THEMES)[number];
+export const CAPTION_STYLES = ['KARAOKE', 'CLEAN', 'BOLD', 'NONE'] as const;
+export type CaptionStyle = (typeof CAPTION_STYLES)[number];
+export const CAPTION_POSITIONS = ['BOTTOM', 'CENTER', 'TOP'] as const;
+export type CaptionPosition = (typeof CAPTION_POSITIONS)[number];
+/** percent of normal speed (backend VideoOptions.MIN/MAX/NORMAL_VOICE_SPEED) */
+export const VOICE_SPEEDS = [90, 100, 110] as const;
+
+export type VideoOptions = {
+  purpose: Purpose;
+  template: Template;
+  audience: Audience;
+  tone: Tone;
+  theme: Theme;
+  /** 100 = normal, 90 = slower, 110 = faster */
+  voiceSpeed: number;
+  captionStyle: CaptionStyle;
+  captionPosition: CaptionPosition;
+};
+
+/** What each purpose card sets before step 2 (the user can still change every field). */
+export const PURPOSE_DEFAULTS: Record<Purpose, { template: Template; tone: Tone; durationSeconds: number; aspectRatio: AspectRatio }> = {
+  EXPLAINER: { template: 'ANIMATED_2D', tone: 'EDUCATIONAL', durationSeconds: 60, aspectRatio: 'LANDSCAPE' },
+  SHORT_FORM: { template: 'ANIMATED_2D', tone: 'ENTERTAINING', durationSeconds: 30, aspectRatio: 'PORTRAIT' },
+  BUSINESS: { template: 'INFOGRAPHIC', tone: 'PROFESSIONAL', durationSeconds: 60, aspectRatio: 'LANDSCAPE' },
+};
+
 export const VISUAL_TYPES = ['image', 'title', 'flow', 'list', 'stat', 'compare', 'code', 'cta'] as const;
 export type VisualType = (typeof VISUAL_TYPES)[number];
 
@@ -73,6 +110,7 @@ export type Project = {
   durationSeconds: number;
   aspectRatio: AspectRatio;
   voiceId: string | null;
+  options: VideoOptions;
   title: string | null;
   script: VideoScript | null;
   estimatedCredits: number;
@@ -88,6 +126,8 @@ export type CreateProject = {
   language: Language;
   durationSeconds: number;
   aspectRatio: AspectRatio;
+  /** every field optional on the backend; the wizard always sends all of them */
+  options?: Partial<VideoOptions>;
 };
 
 export type StepStatus = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'SKIPPED';

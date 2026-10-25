@@ -7,6 +7,7 @@ import { AuthProvider } from '../auth/AuthContext';
 import { routes } from '../App';
 import type { Snapshot } from '../api/events';
 import type { Assets, Project, Visual } from '../api/projects';
+import { testOptions } from './fixtures';
 
 /* 6.3: live progress (SSE), files per scene, redo a scene, render with %, watch + download. */
 
@@ -30,7 +31,7 @@ const V = (p: Partial<Visual>): Visual => ({
 
 const project = (status: Project['status']): Project => ({
   id: 'p1', status, idea: 'CI/CD', language: 'EN', durationSeconds: 30, aspectRatio: 'PORTRAIT', voiceId: null,
-  title: 'CI/CD', estimatedCredits: 30, errorCode: null, errorMessage: null, createdAt: '2026-10-21T10:00:00Z',
+  options: testOptions, title: 'CI/CD', estimatedCredits: 30, errorCode: null, errorMessage: null, createdAt: '2026-10-21T10:00:00Z',
   updatedAt: '2026-10-21T10:00:00Z', jobs: [{ id: 'j2', kind: 'ASSETS', status: 'RUNNING', errorCode: null, startedAt: null, finishedAt: null }],
   script: {
     title: 'CI/CD', musicMood: 'upbeat',

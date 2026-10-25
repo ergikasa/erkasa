@@ -5,9 +5,10 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '../auth/AuthContext';
 import { routes } from '../App';
+import { testOptions } from './fixtures';
 import type { Project, Visual } from '../api/projects';
 
-/* 6.2: new video form, script review (edit, save, problems, approve). The backend is faked. */
+/* 6.2 + 9.1: new video wizard, script review (edit, save, problems, approve). The backend is faked. */
 
 const user = { id: 'u', email: 'ergi@example.com', displayName: 'Ergi', emailVerified: true, role: 'USER', createdAt: '2026-10-01T00:00:00Z' };
 const login = { accessToken: 'A', tokenType: 'Bearer', expiresIn: 900, refreshToken: 'R', refreshExpiresIn: 100, user };
@@ -20,7 +21,7 @@ const visual = (patch: Partial<Visual>): Visual => ({
 
 const reviewProject = (): Project => ({
   id: 'p1', status: 'SCRIPT_REVIEW', idea: 'How CI/CD works', language: 'EN', durationSeconds: 30,
-  aspectRatio: 'PORTRAIT', voiceId: null, title: 'CI/CD in 30 seconds', estimatedCredits: 30,
+  aspectRatio: 'PORTRAIT', voiceId: null, options: testOptions, title: 'CI/CD in 30 seconds', estimatedCredits: 30,
   errorCode: null, errorMessage: null, createdAt: '2026-10-21T10:00:00Z', updatedAt: '2026-10-21T10:00:00Z', jobs: [],
   script: {
     title: 'CI/CD in 30 seconds',
@@ -65,26 +66,68 @@ function renderAt(path: string) {
 }
 
 describe('new video', () => {
-  it('sends the idea with language, length and format, then shows the script being written', async () => {
+  it('step 1 cards set the defaults; step 2 sends every choice, then shows the script being written', async () => {
     const pending = { ...reviewProject(), status: 'SCRIPT_PENDING', script: null, title: null, durationSeconds: 60, aspectRatio: 'LANDSCAPE' };
     handler = (c) => (c.method === 'POST' && c.url === '/api/projects' ? { status: 201, body: pending } : c.url === '/api/projects/p1' ? { status: 200, body: pending } : undefined);
     const router = renderAt('/new');
 
-    await userEvent.type(await screen.findByLabelText('Your idea'), 'How CI/CD works');
-    await userEvent.click(screen.getByRole('radio', { name: '60 s' }));
-    await userEvent.click(screen.getByRole('radio', { name: /Horizontal 16:9/ }));
+    expect(await screen.findByText('What do you want to create?')).toBeInTheDocument();
+    expect(screen.getByText('Storytelling').closest('[aria-disabled]')).not.toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: /Infographic \/ Business/ }));
+
+    // the business card picked these
+    expect(screen.getByRole('radio', { name: /^Infographic/ })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Professional' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: '60 s' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: /Horizontal 16:9/ })).toHaveAttribute('aria-checked', 'true');
+
+    // paste instead of type: one event instead of one per letter
+    await userEvent.click(screen.getByLabelText('Your idea'));
+    await userEvent.paste('How CI/CD works');
+    await userEvent.click(screen.getByRole('radio', { name: /Expert/ }));
+    await userEvent.click(screen.getByRole('radio', { name: /Light/ }));
+    await userEvent.click(screen.getByText('More options'));
+    await userEvent.click(screen.getByRole('radio', { name: 'Faster' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Bold' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Top' }));
     expect(screen.getByText('About 60 credits')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Write the script' }));
 
     expect(await screen.findByText('Writing your script…')).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/projects/p1');
     const create = calls.find((c) => c.method === 'POST' && c.url === '/api/projects')!;
-    expect(create.body).toEqual({ idea: 'How CI/CD works', language: 'EN', durationSeconds: 60, aspectRatio: 'LANDSCAPE' });
+    expect(create.body).toEqual({
+      idea: 'How CI/CD works',
+      language: 'EN',
+      durationSeconds: 60,
+      aspectRatio: 'LANDSCAPE',
+      options: {
+        purpose: 'BUSINESS', template: 'INFOGRAPHIC', audience: 'EXPERT', tone: 'PROFESSIONAL', theme: 'LIGHT',
+        voiceSpeed: 110, captionStyle: 'BOLD', captionPosition: 'TOP',
+      },
+    });
+    // many clicks in one test: slower machines need more than the default 5 s
+  }, 20_000);
+
+  it('hides the caption position when there are no captions, and "Change" goes back to step 1', async () => {
+    renderAt('/new');
+    await userEvent.click(await screen.findByRole('button', { name: /Short-form video/ }));
+    expect(screen.getByRole('radio', { name: /Vertical 9:16/ })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Entertaining' })).toHaveAttribute('aria-checked', 'true');
+
+    await userEvent.click(screen.getByText('More options'));
+    expect(screen.getByText('Caption position')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('radio', { name: 'No captions' }));
+    expect(screen.queryByText('Caption position')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Change/ }));
+    expect(screen.getByText('What do you want to create?')).toBeInTheDocument();
   });
 
   it('needs an idea', async () => {
     renderAt('/new');
-    await userEvent.click(await screen.findByRole('button', { name: 'Write the script' }));
+    await userEvent.click(await screen.findByRole('button', { name: /Educational explainer/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Write the script' }));
     expect(screen.getByText('Required')).toBeInTheDocument();
     expect(calls.some((c) => c.url === '/api/projects')).toBe(false);
   });

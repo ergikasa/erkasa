@@ -10,12 +10,14 @@ import com.erkasa.backend.jobs.JobKind;
 import com.erkasa.backend.jobs.JobStatus;
 import com.erkasa.backend.jobs.Project;
 import com.erkasa.backend.jobs.ProjectStatus;
+import com.erkasa.backend.jobs.VideoOptions;
 import com.erkasa.backend.providers.AspectRatio;
 import com.erkasa.backend.providers.Language;
 
 /**
  * What the API returns for a project.
  *
+ * @param options          the wizard choices (purpose, template, audience, tone, theme, voice speed, captions)
  * @param script           null while the script is being written (status SCRIPT_PENDING)
  * @param estimatedCredits what the video will cost the user: 1 credit per second (charged in phase 7)
  * @param jobs             the project's history, oldest first
@@ -27,6 +29,7 @@ public record ProjectResponse(UUID id,
                               int durationSeconds,
                               AspectRatio aspectRatio,
                               String voiceId,
+                              VideoOptions options,
                               String title,
                               VideoScript script,
                               int estimatedCredits,
@@ -47,7 +50,7 @@ public record ProjectResponse(UUID id,
 
     static ProjectResponse of(Project p, VideoScript script, List<Job> jobs) {
         return new ProjectResponse(p.getId(), p.getStatus(), p.getIdea(), p.getLanguage(), p.getDurationSeconds(),
-                p.getAspectRatio(), p.getVoiceId(), p.getTitle(), script, p.getDurationSeconds(),
+                p.getAspectRatio(), p.getVoiceId(), p.options(), p.getTitle(), script, p.getDurationSeconds(),
                 p.getErrorCode(), p.getErrorMessage(), p.getCreatedAt(), p.getUpdatedAt(),
                 jobs.stream().map(JobSummary::of).toList());
     }
@@ -55,7 +58,7 @@ public record ProjectResponse(UUID id,
     /** For lists: no script and no jobs, to keep the answer small. */
     static ProjectResponse brief(Project p) {
         return new ProjectResponse(p.getId(), p.getStatus(), p.getIdea(), p.getLanguage(), p.getDurationSeconds(),
-                p.getAspectRatio(), p.getVoiceId(), p.getTitle(), null, p.getDurationSeconds(),
+                p.getAspectRatio(), p.getVoiceId(), p.options(), p.getTitle(), null, p.getDurationSeconds(),
                 p.getErrorCode(), p.getErrorMessage(), p.getCreatedAt(), p.getUpdatedAt(), List.of());
     }
 }

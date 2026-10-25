@@ -25,6 +25,7 @@ import com.erkasa.backend.features.promptvideo.script.ScriptRequest;
 import com.erkasa.backend.features.promptvideo.script.VideoScript;
 import com.erkasa.backend.jobs.Project;
 import com.erkasa.backend.jobs.StepType;
+import com.erkasa.backend.jobs.VideoOptions;
 import com.erkasa.backend.providers.AspectRatio;
 import com.erkasa.backend.providers.Language;
 
@@ -41,6 +42,9 @@ import jakarta.validation.constraints.Size;
  * The video projects of the logged-in user.
  *
  *   POST /api/projects                          create; the script is written in the background (202)
+ *                                               body: idea, language, durationSeconds, aspectRatio, voiceId,
+ *                                               options {purpose, template, audience, tone, theme,
+ *                                               voiceSpeed, captionStyle, captionPosition} (all optional)
  *   GET  /api/projects                          my projects, newest first
  *   GET  /api/projects/{id}                     status, script, jobs (poll this until SCRIPT_REVIEW)
  *   PUT  /api/projects/{id}/script              save an edited script (only in SCRIPT_REVIEW)
@@ -74,7 +78,30 @@ public class ProjectController {
             @Min(value = ScriptRequest.MIN_DURATION, message = "At least 15 seconds")
             @Max(value = ScriptRequest.MAX_DURATION, message = "At most 90 seconds") int durationSeconds,
             AspectRatio aspectRatio,
-            @Size(max = 100) String voiceId) {
+            @Size(max = 100) String voiceId,
+            @Valid OptionsRequest options) {
+    }
+
+    /**
+     * The wizard choices (phase 9.1). Every field is optional: what is missing gets a default,
+     * and template / tone follow the purpose (see VideoOptions.withDefaults). The whole object
+     * may be missing too.
+     */
+    public record OptionsRequest(
+            VideoOptions.Purpose purpose,
+            VideoOptions.Template template,
+            VideoOptions.Audience audience,
+            VideoOptions.Tone tone,
+            VideoOptions.Theme theme,
+            @Min(value = VideoOptions.MIN_VOICE_SPEED, message = "The voice can be at most 30% slower")
+            @Max(value = VideoOptions.MAX_VOICE_SPEED, message = "The voice can be at most 20% faster") Integer voiceSpeed,
+            VideoOptions.CaptionStyle captionStyle,
+            VideoOptions.CaptionPosition captionPosition) {
+
+        VideoOptions complete() {
+            return VideoOptions.withDefaults(purpose, template, audience, tone, theme, voiceSpeed,
+                    captionStyle, captionPosition);
+        }
     }
 
     public record UpdateScriptRequest(@NotNull(message = "The script is missing") VideoScript script) {
@@ -83,7 +110,8 @@ public class ProjectController {
     @PostMapping
     public ResponseEntity<ProjectResponse> create(@Valid @RequestBody CreateRequest body, @AuthenticationPrincipal Jwt jwt) {
         Project project = service.create(userId(jwt), new ProjectService.NewProject(
-                body.idea(), body.language(), body.durationSeconds(), body.aspectRatio(), body.voiceId()));
+                body.idea(), body.language(), body.durationSeconds(), body.aspectRatio(), body.voiceId(),
+                body.options() == null ? null : body.options().complete()));
         // 202 Accepted: the project exists, the script is still being written.
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(full(project));
     }
