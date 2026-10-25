@@ -1,0 +1,269 @@
+{
+  "version": 1,
+  "generatedBy": "backend SceneContract (run SceneContractTests to update)",
+  "types": {
+    "bars": {
+      "fields": ["title", "items", "values", "prefix", "suffix"],
+      "styles": ["INFOGRAPHIC"]
+    },
+    "beforeAfter": {
+      "fields": ["leftTitle", "rightTitle", "left", "right", "icons"],
+      "styles": ["ANIMATED_2D"]
+    },
+    "browser": {
+      "fields": ["title", "items", "pose"],
+      "styles": ["ANIMATED_2D"]
+    },
+    "character": {
+      "fields": ["pose", "text", "icons"],
+      "styles": ["ANIMATED_2D"]
+    },
+    "code": {
+      "fields": ["code", "language"],
+      "styles": ["CLASSIC"]
+    },
+    "compare": {
+      "fields": ["leftTitle", "left", "rightTitle", "right"],
+      "styles": ["INFOGRAPHIC", "CLASSIC"]
+    },
+    "cta": {
+      "fields": ["text", "handle"],
+      "styles": ["ANIMATED_2D", "INFOGRAPHIC", "CLASSIC"]
+    },
+    "cycle": {
+      "fields": ["title", "items"],
+      "styles": ["INFOGRAPHIC"]
+    },
+    "exchange": {
+      "fields": ["items", "icons", "messages", "subtitle", "pose"],
+      "styles": ["ANIMATED_2D"]
+    },
+    "flow": {
+      "fields": ["items"],
+      "styles": ["ANIMATED_2D", "INFOGRAPHIC", "CLASSIC"]
+    },
+    "iconGrid": {
+      "fields": ["items", "icons"],
+      "styles": ["INFOGRAPHIC"]
+    },
+    "iconLink": {
+      "fields": ["items", "icons"],
+      "styles": ["ANIMATED_2D"]
+    },
+    "image": {
+      "fields": [],
+      "styles": ["CLASSIC"]
+    },
+    "list": {
+      "fields": ["items"],
+      "styles": ["ANIMATED_2D", "INFOGRAPHIC", "CLASSIC"]
+    },
+    "metaphor": {
+      "fields": ["title", "subtitle", "icons"],
+      "styles": ["ANIMATED_2D"]
+    },
+    "stat": {
+      "fields": ["value", "prefix", "suffix", "label"],
+      "styles": ["ANIMATED_2D", "INFOGRAPHIC", "CLASSIC"]
+    },
+    "timeline": {
+      "fields": ["items", "labels"],
+      "styles": ["INFOGRAPHIC"]
+    },
+    "title": {
+      "fields": ["title", "subtitle"],
+      "styles": ["ANIMATED_2D", "INFOGRAPHIC", "CLASSIC"]
+    },
+    "zoom": {
+      "fields": ["title", "icons", "items"],
+      "styles": ["ANIMATED_2D"]
+    }
+  },
+  "styles": {
+    "ANIMATED_2D": [
+      "beforeAfter",
+      "browser",
+      "character",
+      "cta",
+      "exchange",
+      "flow",
+      "iconLink",
+      "list",
+      "metaphor",
+      "stat",
+      "title",
+      "zoom"
+    ],
+    "INFOGRAPHIC": [
+      "bars",
+      "compare",
+      "cta",
+      "cycle",
+      "flow",
+      "iconGrid",
+      "list",
+      "stat",
+      "timeline",
+      "title"
+    ],
+    "CLASSIC": ["code", "compare", "cta", "flow", "image", "list", "stat", "title"]
+  },
+  "icons": [
+    "apple",
+    "baby",
+    "battery-charging",
+    "bell",
+    "bike",
+    "book-open",
+    "bot",
+    "brain",
+    "briefcase",
+    "bug",
+    "building",
+    "bus",
+    "calculator",
+    "calendar",
+    "camera",
+    "car",
+    "chart-bar",
+    "chart-line",
+    "chart-pie",
+    "circle-check",
+    "circle-question-mark",
+    "circle-x",
+    "clock",
+    "cloud",
+    "cloud-rain",
+    "code",
+    "coffee",
+    "coins",
+    "cpu",
+    "credit-card",
+    "database",
+    "dollar-sign",
+    "droplet",
+    "dumbbell",
+    "eighth-notes",
+    "euro",
+    "eye",
+    "face-slightly-frowning",
+    "face-slightly-smiling",
+    "factory",
+    "file-text",
+    "fingerprint-pattern",
+    "flag",
+    "flame",
+    "folder",
+    "gamepad-2",
+    "gavel",
+    "gift",
+    "git-branch",
+    "globe",
+    "graduation-cap",
+    "handshake",
+    "headphones",
+    "heart",
+    "heart-pulse",
+    "hospital",
+    "hourglass",
+    "house",
+    "key",
+    "laptop",
+    "layers",
+    "leaf",
+    "lightbulb",
+    "link",
+    "list-checks",
+    "lock",
+    "mail",
+    "map",
+    "map-pin",
+    "megaphone",
+    "message-circle",
+    "monitor",
+    "moon",
+    "package",
+    "piggy-bank",
+    "pill",
+    "plane",
+    "plug",
+    "presentation",
+    "puzzle",
+    "receipt",
+    "recycle",
+    "rocket",
+    "scale",
+    "school",
+    "search",
+    "server",
+    "settings",
+    "shield-check",
+    "ship",
+    "shopping-cart",
+    "smartphone",
+    "sparkles",
+    "star",
+    "stethoscope",
+    "store",
+    "sun",
+    "target",
+    "terminal",
+    "thumbs-down",
+    "thumbs-up",
+    "timer",
+    "train-front",
+    "trees",
+    "trending-down",
+    "trending-up",
+    "triangle-alert",
+    "trophy",
+    "truck",
+    "user",
+    "users",
+    "utensils",
+    "wallet",
+    "wifi",
+    "wrench",
+    "zap"
+  ],
+  "poses": [
+    "celebrating",
+    "confused",
+    "happy",
+    "idea",
+    "phone",
+    "pointing",
+    "presenting",
+    "sitting",
+    "standing",
+    "surprised",
+    "thinking",
+    "walking",
+    "waving",
+    "working",
+    "worried"
+  ],
+  "sounds": [
+    "beep",
+    "boing",
+    "camera",
+    "cash",
+    "chime",
+    "click",
+    "coin",
+    "ding",
+    "error",
+    "glitch",
+    "heartbeat",
+    "impact",
+    "notification",
+    "pop",
+    "riser",
+    "success",
+    "swoosh",
+    "tick",
+    "typing",
+    "whoosh"
+  ],
+  "musicMoods": ["calm", "dramatic", "fun", "inspiring", "mysterious", "upbeat"]
+}

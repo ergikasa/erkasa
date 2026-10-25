@@ -4,6 +4,7 @@ import PeepModule from 'react-peeps';
 import { Icon } from './Infographics';
 import { AspectRatio, Visual, Word, cueTimes } from './spec';
 import { panelStyle, theme } from './theme';
+import { POSES, Shot } from './poses';
 
 /*
  * The ANIMATED_2D template scenes (9.4): a 2D person with a speech bubble, icons joined by
@@ -59,27 +60,6 @@ export function applyCast(seed: string | undefined): void {
   for (const ch of seed ?? '') h = (h * 31 + ch.charCodeAt(0)) | 0;
   actor = CAST[Math.abs(h) % CAST.length];
 }
-
-type Shot = 'full' | 'sitting' | 'bust';
-
-/** Catalog pose -> Open Peeps body + face. Keep the names in sync with backend SceneCatalog.POSES. */
-const POSES: Record<string, { body: string; face: string; shot: Shot }> = {
-  standing: { body: 'ShirtPantsWB', face: 'Smile', shot: 'full' },
-  waving: { body: 'EasingWB', face: 'SmileBig', shot: 'full' },
-  pointing: { body: 'PointingFingerWB', face: 'Explaining', shot: 'full' },
-  presenting: { body: 'Explaining', face: 'Explaining', shot: 'bust' },
-  idea: { body: 'PointingUp', face: 'SmileBig', shot: 'bust' },
-  thinking: { body: 'CrossedArmsWB', face: 'Serious', shot: 'full' },
-  confused: { body: 'RestingWB', face: 'Concerned', shot: 'full' },
-  surprised: { body: 'EasingWB', face: 'Awe', shot: 'full' },
-  happy: { body: 'EasingWB', face: 'SmileBig', shot: 'full' },
-  celebrating: { body: 'RoboDanceWB', face: 'SmileLol', shot: 'full' },
-  worried: { body: 'CrossedArmsWB', face: 'ConcernedFear', shot: 'full' },
-  working: { body: 'Geek', face: 'Driven', shot: 'bust' },
-  phone: { body: 'Device', face: 'Calm', shot: 'bust' },
-  walking: { body: 'WalkingWB', face: 'Smile', shot: 'full' },
-  sitting: { body: 'ClosedLegWB', face: 'Calm', shot: 'sitting' },
-};
 
 /**
  * The host beside a diagram is always a full figure, so it keeps the same size from scene to

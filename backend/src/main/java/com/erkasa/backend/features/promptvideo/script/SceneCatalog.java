@@ -25,8 +25,8 @@ public final class SceneCatalog {
     public static final Set<Template> READY = EnumSet.of(Template.CLASSIC, Template.INFOGRAPHIC, Template.ANIMATED_2D);
 
     /**
-     * Lucide icon names (lucide.dev, lucide-react 1.61) the LLM may choose. Keep in sync with
-     * render-worker/src/icons.ts (9.3); a name Lucide does not have breaks nothing but shows a plain circle.
+     * Lucide icon names (lucide.dev, lucide-react 1.61) the LLM may choose. The render worker's
+     * src/icons.ts must have the same names: both are checked against contracts/scene-catalog.json.
      */
     public static final List<String> ICONS = List.of(
             // people and places
@@ -53,12 +53,24 @@ public final class SceneCatalog {
             "scale", "gavel");
 
     /**
-     * Character poses the LLM may choose for "character" scenes. Keep in sync with the POSES map in
-     * render-worker/src/Animated2D.tsx, which turns each into an Open Peeps body + face (9.4).
+     * Character poses the LLM may choose for "character" scenes. The render worker's src/poses.ts
+     * turns each into an Open Peeps body + face; both are checked against contracts/scene-catalog.json.
      */
     public static final List<String> POSES = List.of(
             "standing", "waving", "pointing", "presenting", "idea", "thinking", "confused", "surprised",
             "happy", "celebrating", "worried", "working", "phone", "walking", "sitting");
+
+    /**
+     * Version of the scene contract (contracts/scene-catalog.json). Raise it when a type, field,
+     * icon, pose or sound is added or changed; never remove a type (old scripts still use it).
+     */
+    public static final int CONTRACT_VERSION = 1;
+
+    /**
+     * type -> the {@link Visual} fields that type fills. Everything else stays empty. Used by the
+     * scene contract (SceneContract) and checked against Visual and ScriptSchema by SceneContractTests.
+     */
+    public static final Map<String, List<String>> FIELDS = fields();
 
     /** type -> what the LLM fills (the order is the order the prompt lists them). */
     private static final Map<String, String> GUIDES = guides();
@@ -96,6 +108,30 @@ public final class SceneCatalog {
     static boolean usesIcons(Template template) {
         return types(template).stream().anyMatch(t -> t.equals("iconGrid") || t.equals("iconLink") || t.equals("exchange")
                 || t.equals("metaphor") || t.equals("beforeAfter") || t.equals("zoom") || t.equals("character"));
+    }
+
+    private static Map<String, List<String>> fields() {
+        Map<String, List<String>> f = new LinkedHashMap<>();
+        f.put("image", List.of());
+        f.put("title", List.of("title", "subtitle"));
+        f.put("flow", List.of("items"));
+        f.put("list", List.of("items"));
+        f.put("stat", List.of("value", "prefix", "suffix", "label"));
+        f.put("compare", List.of("leftTitle", "left", "rightTitle", "right"));
+        f.put("code", List.of("code", "language"));
+        f.put("cta", List.of("text", "handle"));
+        f.put("bars", List.of("title", "items", "values", "prefix", "suffix"));
+        f.put("timeline", List.of("items", "labels"));
+        f.put("cycle", List.of("title", "items"));
+        f.put("iconGrid", List.of("items", "icons"));
+        f.put("character", List.of("pose", "text", "icons"));
+        f.put("iconLink", List.of("items", "icons"));
+        f.put("metaphor", List.of("title", "subtitle", "icons"));
+        f.put("beforeAfter", List.of("leftTitle", "rightTitle", "left", "right", "icons"));
+        f.put("zoom", List.of("title", "icons", "items"));
+        f.put("exchange", List.of("items", "icons", "messages", "subtitle", "pose"));
+        f.put("browser", List.of("title", "items", "pose"));
+        return java.util.Collections.unmodifiableMap(f);
     }
 
     private static Map<String, String> guides() {

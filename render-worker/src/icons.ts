@@ -1,7 +1,8 @@
 /**
  * The icon library (9.3): Lucide icons (lucide.dev, ISC licence, free to use).
  *
- * The LLM may only choose these names (backend SceneCatalog.ICONS); keep both lists the same.
+ * The LLM may only choose these names (backend SceneCatalog.ICONS); src/test/contract.test.ts
+ * checks this list against contracts/scene-catalog.json.
  * A name that is not here is drawn as a neutral circle instead of failing the render.
  */
 import type { LucideIcon } from 'lucide-react';

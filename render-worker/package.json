@@ -9,6 +9,7 @@
     "render": "tsx src/render-cli.ts",
     "sample": "tsx src/make-sample.ts",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "demo": "tsx src/make-demo.ts",
     "demo:info": "tsx src/make-info-demo.ts",
     "demo:2d": "tsx src/make-2d-demo.ts",
@@ -35,7 +36,8 @@
     "@types/node": "22.15.30",
     "@types/react": "19.3.0",
     "tsx": "4.23.15",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
   },
   "engines": {
     "node": ">=20"

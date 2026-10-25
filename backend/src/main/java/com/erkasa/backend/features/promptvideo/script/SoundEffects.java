@@ -16,7 +16,7 @@ public final class SoundEffects {
     /** At most this many LLM sounds per scene, so the voice is never buried. */
     public static final int MAX_PER_SCENE = 2;
 
-    /** key -> when to use it (also sent to the LLM). Keep in sync with render-worker/src/sfx.ts. */
+    /** key -> when to use it (also sent to the LLM). Same keys as render-worker/src/sfx.ts (checked via contracts/scene-catalog.json). */
     public static final Map<String, String> CATALOG = catalog();
 
     public static final List<String> SOUNDS = List.copyOf(CATALOG.keySet());

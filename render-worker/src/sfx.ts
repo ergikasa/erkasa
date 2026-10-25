@@ -21,7 +21,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Effect, RenderSpec, SpecScene, Word, cueTimes, fpsOf, messageTimes, normalizeVisual, sceneFrames } from './spec';
 
-/** key -> loudness (0..1). Same keys as the backend's SoundEffects.CATALOG. */
+/** key -> loudness (0..1). Same keys as the backend's SoundEffects.CATALOG (src/test/contract.test.ts checks it). */
 export const SOUNDS: Record<string, number> = {
   whoosh: 0.3,
   swoosh: 0.3,
