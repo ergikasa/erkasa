@@ -62,11 +62,11 @@ export const VISUAL_TYPES = [
   'image', 'title', 'flow', 'list', 'stat', 'compare', 'code', 'cta',
   // INFOGRAPHIC (9.3)
   'bars', 'timeline', 'cycle', 'iconGrid',
-  // ANIMATED_2D (9.4)
-  'character', 'iconLink', 'metaphor', 'beforeAfter', 'zoom',
+  // ANIMATED_2D (9.4, 9.4b)
+  'character', 'iconLink', 'metaphor', 'beforeAfter', 'zoom', 'exchange', 'browser',
 ] as const;
 /** Types whose items go in pairs with values / labels / icons: an item is never dropped, only trimmed. */
-export const PAIRED_TYPES: readonly VisualType[] = ['bars', 'timeline', 'iconGrid', 'iconLink'];
+export const PAIRED_TYPES: readonly VisualType[] = ['bars', 'timeline', 'iconGrid', 'iconLink', 'exchange'];
 export type VisualType = (typeof VISUAL_TYPES)[number];
 
 /** The flat visual object (backend Visual): every field present, the unused ones empty. */
@@ -95,7 +95,11 @@ export type Visual = {
   /** Lucide icon names: iconGrid (one per item) ... */
   icons?: string[];
   pose?: string;
+  /** exchange (9.4b): who sends what to whom, parties numbered from 0 */
+  messages?: Message[];
 };
+
+export type Message = { from: number; to: number; label: string };
 
 export type SoundCue = { sound: string; onWord: string };
 

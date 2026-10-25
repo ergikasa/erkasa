@@ -7,6 +7,7 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import com.erkasa.backend.features.promptvideo.script.Message;
 import com.erkasa.backend.features.promptvideo.script.SceneCatalog;
 import com.erkasa.backend.features.promptvideo.script.ScriptPrompts;
 import com.erkasa.backend.features.promptvideo.script.ScriptRequest;
@@ -186,5 +187,52 @@ class TemplateScriptTests {
         List<String> animated = ScriptValidator.validate(script(character, metaphor, cta()), 16, Template.ANIMATED_2D);
         assertThat(animated).anyMatch(p -> p.startsWith("Scene 1 visual (character)") && p.contains("pose must be one of"));
         assertThat(animated).anyMatch(p -> p.startsWith("Scene 2 visual (metaphor)") && p.contains("exactly 2 icons"));
+    }
+
+    // ---------- 9.4b: scenes that show an action ----------
+
+    private static Visual exchange(List<String> parties, List<String> icons, List<Message> messages, String result, String pose) {
+        return new Visual("exchange", "", result, parties, 0.0, "", "", "", "", "", List.of(), List.of(), "", "", "", "",
+                List.of(), List.of(), icons, pose, messages);
+    }
+
+    private static Visual browser(String url, List<String> items, String pose) {
+        return new Visual("browser", url, "", items, 0.0, "", "", "", "", "", List.of(), List.of(), "", "", "", "",
+                List.of(), List.of(), List.of(), pose, List.of());
+    }
+
+    @Test
+    void theUrlVideoScenesPassForAnimated2D() {
+        // the scenes of the "What happens when you type a URL" comparison video
+        Visual dns = exchange(List.of("Browser", "DNS server"), List.of("monitor", "server"),
+                List.of(new Message(0, 1, "where is example.com?"), new Message(1, 0, "IP 93.184.216.34")), "", "pointing");
+        Visual tcp = exchange(List.of("Browser", "Server"), List.of("monitor", "server"),
+                List.of(new Message(0, 1, "SYN"), new Message(1, 0, "SYN-ACK"), new Message(0, 1, "ACK")), "Connected", "presenting");
+        Visual page = browser("example.com", List.of("HTML", "Styles", "Images"), "happy");
+        assertThat(ScriptValidator.validate(script(dns, tcp, page), 16, Template.ANIMATED_2D)).isEmpty();
+        assertThat(ScriptValidator.validate(script(browser("example.com", List.of(), ""), dns, cta()), 16, Template.ANIMATED_2D)).isEmpty();
+    }
+
+    @Test
+    void badExchangesAreExplainedToTheLlm() {
+        Visual self = exchange(List.of("App", "API"), List.of("smartphone", "server"),
+                List.of(new Message(0, 0, "hello"), new Message(0, 5, "token please")), "", "");
+        Visual noMessages = exchange(List.of("App", "API"), List.of("smartphone", "server"), List.of(), "", "dancing");
+        Visual badUrl = browser("my web site", List.of(), "");
+        List<String> problems = ScriptValidator.validate(script(self, noMessages, badUrl), 16, Template.ANIMATED_2D);
+
+        assertThat(problems).anyMatch(p -> p.startsWith("Scene 1 visual (exchange)") && p.contains("message 1 goes from a party to itself"));
+        assertThat(problems).anyMatch(p -> p.startsWith("Scene 1 visual (exchange)") && p.contains("message 2 from and to must be party numbers 0 to 1"));
+        assertThat(problems).anyMatch(p -> p.startsWith("Scene 2 visual (exchange)") && p.contains("use 1 to 4 messages"));
+        assertThat(problems).anyMatch(p -> p.startsWith("Scene 2 visual (exchange)") && p.contains("pose must be"));
+        assertThat(problems).anyMatch(p -> p.startsWith("Scene 3 visual (browser)") && p.contains("web address without spaces"));
+    }
+
+    @Test
+    void actionScenesAreOnlyFor2DAndThePromptAsksForThem() {
+        assertThat(visualTypes(Template.ANIMATED_2D)).contains("exchange", "browser");
+        assertThat(visualTypes(Template.CLASSIC)).doesNotContain("exchange", "browser");
+        assertThat(prompt(options(Purpose.EXPLAINER, Template.ANIMATED_2D, null, null)))
+                .contains("\"exchange\": SHOWS an action", "never show such a process as a plain list", "\"browser\":");
     }
 }

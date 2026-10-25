@@ -3,7 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { ScriptEditor, cleanScript } from '../components/ScriptEditor';
 import type { Visual, VideoScript } from '../api/projects';
 
-/* 9.3 + 9.4: the script review can edit the infographic and 2D scenes without breaking their pairs. */
+/* 9.3, 9.4, 9.4b: the script review can edit the infographic and 2D scenes without breaking their pairs. */
 
 const visual = (patch: Partial<Visual>): Visual => ({
   type: 'image', title: '', subtitle: '', items: [], value: 0, prefix: '', suffix: '', label: '',
@@ -74,5 +74,34 @@ describe('2D scenes in the script editor', () => {
 
     fireEvent.change(screen.getByLabelText('Is like…'), { target: { value: 'like a restaurant waiter' } });
     expect(onChange.mock.calls.at(-1)![0].scenes[0].visual).toMatchObject({ title: 'An API', subtitle: 'like a restaurant waiter' });
+  });
+});
+
+describe('action scenes in the script editor', () => {
+  it('edits one message of an exchange and keeps who sends it', () => {
+    const onChange = vi.fn();
+    const dns = visual({
+      type: 'exchange',
+      items: ['Browser', 'DNS server'],
+      icons: ['monitor', 'server'],
+      messages: [{ from: 0, to: 1, label: 'where is example.com?' }, { from: 1, to: 0, label: 'IP 93.184.216.34' }],
+    });
+    render(<ScriptEditor script={script(dns)} targetSeconds={30} onChange={onChange} />);
+
+    expect(screen.getByText('Messages')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Message 2: DNS server → Browser'), { target: { value: 'IP address' } });
+    expect(onChange.mock.calls.at(-1)![0].scenes[0].visual.messages).toEqual([
+      { from: 0, to: 1, label: 'where is example.com?' },
+      { from: 1, to: 0, label: 'IP address' },
+    ]);
+  });
+
+  it('edits the address of a browser scene', () => {
+    const onChange = vi.fn();
+    const page = visual({ type: 'browser', title: 'example.com', items: ['HTML', 'Styles'] });
+    render(<ScriptEditor script={script(page)} targetSeconds={30} onChange={onChange} />);
+
+    fireEvent.change(screen.getByLabelText('Web address'), { target: { value: 'erkasa.com' } });
+    expect(onChange.mock.calls.at(-1)![0].scenes[0].visual.title).toBe('erkasa.com');
   });
 });

@@ -130,6 +130,40 @@ final class VisualRules {
                 if (list(v.left()).size() > 3 || list(v.right()).size() > 3) problems.add(at + "use at most 3 rows on each side.");
                 iconCount(problems, at, v, 2, 2);
             }
+            // ---- action scenes (9.4b) ----
+            case "exchange" -> {
+                List<String> parties = list(v.items());
+                if (parties.size() < 2 || parties.size() > 3) problems.add(at + "use 2 or 3 parties in items.");
+                if (parties.stream().anyMatch(it -> blank(it) || words(it) > 3)) problems.add(at + "every party name must be 1 to 3 words.");
+                iconCount(problems, at, v, parties.size(), parties.size());
+                List<Message> messages = v.messages() == null ? List.of() : v.messages();
+                if (messages.isEmpty() || messages.size() > 4) problems.add(at + "use 1 to 4 messages.");
+                for (int k = 0; k < messages.size(); k++) {
+                    Message m = messages.get(k);
+                    String which = at + "message " + (k + 1) + " ";
+                    if (m == null) {
+                        problems.add(which + "is empty.");
+                        continue;
+                    }
+                    if (m.from() < 0 || m.from() >= parties.size() || m.to() < 0 || m.to() >= parties.size()) {
+                        problems.add(which + "from and to must be party numbers 0 to " + (parties.size() - 1) + ".");
+                    } else if (m.from() == m.to()) {
+                        problems.add(which + "goes from a party to itself; from and to must differ.");
+                    }
+                    if (blank(m.label()) || words(m.label()) > 5) problems.add(which + "label must be 1 to 5 words.");
+                }
+                if (words(v.subtitle()) > 3) problems.add(at + "subtitle (the result) must be at most 3 words.");
+                hostPose(problems, at, v);
+            }
+            case "browser" -> {
+                if (blank(v.title()) || v.title().strip().contains(" ") || v.title().length() > 40) {
+                    problems.add(at + "title must be a web address without spaces, at most 40 characters.");
+                }
+                List<String> items = list(v.items());
+                if (items.size() > 4) problems.add(at + "use at most 4 items.");
+                if (items.stream().anyMatch(it -> blank(it) || words(it) > 3)) problems.add(at + "every item must be 1 to 3 words.");
+                hostPose(problems, at, v);
+            }
             case "zoom" -> {
                 if (blank(v.title()) || words(v.title()) > 3) problems.add(at + "title (the object) must be 1 to 3 words.");
                 List<String> items = list(v.items());
@@ -142,6 +176,13 @@ final class VisualRules {
             }
         }
         return problems;
+    }
+
+    /** The optional host beside an action scene: "" or a catalog pose. */
+    private static void hostPose(List<String> problems, String at, Visual v) {
+        if (!blank(v.pose()) && !SceneCatalog.POSES.contains(v.pose())) {
+            problems.add(at + "pose must be \"\" (no host) or one of " + SceneCatalog.POSES + ".");
+        }
     }
 
     /** Between min and max icons, all from SceneCatalog.ICONS. */

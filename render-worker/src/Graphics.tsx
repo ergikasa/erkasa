@@ -3,23 +3,34 @@ import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig, Eas
 import { AspectRatio, Visual, Word, cueTimes } from './spec';
 import { panelStyle, theme } from './theme';
 import { Infographic, isInfographic } from './Infographics';
-import { Animated2D, isAnimated2D } from './Animated2D';
+import { Animated2D, Person, hostPose, isAnimated2D } from './Animated2D';
+import { Browser, Exchange } from './Explainers';
+import { messageTimes } from './spec';
 
 type Props = { visual: Exclude<Visual, { type: 'image' }>; words: Word[]; audioSeconds: number; aspectRatio: AspectRatio };
 
-/** Motion graphics for a scene that explains instead of showing a picture. */
+/** The stage: what is left of the screen after the margins and the captions area. */
+export const STAGE: Record<AspectRatio, { top: number; bottom: number; side: number; width: number; height: number }> = {
+  PORTRAIT: { top: 210, bottom: 640, side: 70, width: 1080 - 140, height: 1920 - 210 - 640 },
+  LANDSCAPE: { top: 70, bottom: 230, side: 140, width: 1920 - 280, height: 1080 - 70 - 230 },
+  SQUARE: { top: 70, bottom: 230, side: 140, width: 1080 - 280, height: 1080 - 70 - 230 },
+};
+
+/**
+ * Motion graphics for a scene that explains instead of showing a picture. The moving background
+ * is drawn once for the whole video (Video.tsx), so it never jumps at a cut.
+ */
 export const Graphic: React.FC<Props> = (props) => {
-  const portrait = props.aspectRatio === 'PORTRAIT';
+  const stage = STAGE[props.aspectRatio];
   return (
     <AbsoluteFill>
-      <Backdrop />
       {/* the stage leaves room at the bottom for the captions */}
       <AbsoluteFill
         style={{
-          top: portrait ? 210 : 70,
-          bottom: portrait ? 640 : 230,
-          left: portrait ? 70 : 140,
-          right: portrait ? 70 : 140,
+          top: stage.top,
+          bottom: stage.bottom,
+          left: stage.side,
+          right: stage.side,
           // AbsoluteFill sets width/height 100%; let top/bottom/left/right decide the size instead
           width: 'auto',
           height: 'auto',
@@ -49,6 +60,9 @@ const Body: React.FC<Props> = ({ visual, words, audioSeconds, aspectRatio }) => 
       return <Code code={visual.code} language={visual.language} audioSeconds={audioSeconds} aspectRatio={aspectRatio} />;
     case 'cta':
       return <Cta text={visual.text} handle={visual.handle} aspectRatio={aspectRatio} />;
+    case 'exchange':
+    case 'browser':
+      return <WithHost visual={visual} words={words} audioSeconds={audioSeconds} aspectRatio={aspectRatio} />;
     default:
       // bars, timeline, cycle, iconGrid (9.3); character, iconLink, metaphor, beforeAfter, zoom (9.4)
       if (isInfographic(visual)) return <Infographic visual={visual} words={words} audioSeconds={audioSeconds} aspectRatio={aspectRatio} />;
@@ -57,7 +71,64 @@ const Body: React.FC<Props> = ({ visual, words, audioSeconds, aspectRatio }) => 
   }
 };
 
+// ---------------------------------------------------------------- host
+
+/**
+ * An action scene (exchange, browser) with the 2D host beside it when the script gives a pose:
+ * the host points at the diagram and reacts (a small hop) whenever something lands.
+ */
+const WithHost: React.FC<{ visual: Extract<Visual, { type: 'exchange' | 'browser' }>; words: Word[]; audioSeconds: number; aspectRatio: AspectRatio }> = ({
+  visual,
+  words,
+  audioSeconds,
+  aspectRatio,
+}) => {
+  const stage = STAGE[aspectRatio];
+  const portrait = aspectRatio === 'PORTRAIT';
+  const host = visual.pose ? hostPose(visual.pose) : '';
+  const hostW = host ? (portrait ? 0 : aspectRatio === 'LANDSCAPE' ? 430 : 250) : 0;
+  // portrait: the host stands under the diagram and may step 50 px into the empty margin above the captions
+  const hostH = host && portrait ? 380 : 0;
+  const hostOverflow = portrait ? 50 : 0;
+  const area = { width: stage.width - hostW, height: stage.height - (hostH ? hostH - hostOverflow : 0) };
+  const reactAt =
+    visual.type === 'exchange'
+      ? messageTimes(visual.messages, words, audioSeconds).map((m) => m.arrive)
+      : visual.items.length
+        ? cueTimes(visual.items, words, audioSeconds)
+        : [0.35 + visual.url.length / 14];
+
+  const scene =
+    visual.type === 'exchange' ? (
+      <Exchange actors={visual.actors} icons={visual.icons} messages={visual.messages} result={visual.result} words={words} audioSeconds={audioSeconds} aspectRatio={aspectRatio} area={area} />
+    ) : (
+      <Browser url={visual.url} items={visual.items} words={words} audioSeconds={audioSeconds} aspectRatio={aspectRatio} area={area} />
+    );
+  if (!host) return scene;
+  if (portrait) {
+    return (
+      <div style={{ position: 'relative', width: stage.width, height: stage.height }}>
+        <div style={{ width: area.width, height: area.height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{scene}</div>
+        <div style={{ position: 'absolute', left: 10, bottom: -hostOverflow }}>
+          <Person pose={host} height={hostH} reactAt={reactAt} enterAt={0.15} />
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', width: stage.width, height: stage.height }}>
+      <div style={{ width: hostW, height: stage.height, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+        <Person pose={host} height={Math.min(stage.height, aspectRatio === 'LANDSCAPE' ? 740 : 520)} reactAt={reactAt} enterAt={0.15} />
+      </div>
+      <div style={{ width: area.width, height: area.height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{scene}</div>
+    </div>
+  );
+};
+
 // ---------------------------------------------------------------- helpers
+
+/** Opacity of an item that has not been said yet: the layout is there from the first frame. */
+const GHOST = 0.22;
 
 function useAppear(atSeconds: number, damping = 14) {
   const frame = useCurrentFrame();
@@ -73,7 +144,7 @@ function useAppear(atSeconds: number, damping = 14) {
  * the gradient itself every frame made Chrome repaint the whole screen (2x slower renders and
  * bigger files).
  */
-const Backdrop: React.FC = () => {
+export const Backdrop: React.FC = () => {
   const frame = useCurrentFrame();
   const { width, height } = useVideoConfig();
   const t = ((frame * 0.6) % 360) * (Math.PI / 180);
@@ -205,8 +276,9 @@ const Flow: React.FC<{ steps: string[]; cues: number[]; aspectRatio: AspectRatio
                 gap: 24,
                 justifyContent: vertical ? 'flex-start' : 'center',
                 flexDirection: vertical ? 'row' : 'column',
-                opacity: appear,
-                transform: `scale(${0.6 + 0.4 * appear}) translateY(${(1 - appear) * 30}px)`,
+                // the whole process is visible (dimmed) from the start; each step lights up when said
+                opacity: GHOST + (1 - GHOST) * appear,
+                transform: `scale(${0.9 + 0.1 * appear})`,
               }}
             >
               <div
@@ -303,8 +375,8 @@ const List: React.FC<{ items: string[]; cues: number[]; aspectRatio: AspectRatio
               alignItems: 'center',
               gap: 28,
               padding: portrait ? '26px 36px' : '20px 32px',
-              opacity: appear,
-              transform: `translateX(${(1 - appear) * -120}px)`,
+              opacity: GHOST + (1 - GHOST) * appear,
+              transform: `translateX(${(1 - appear) * -30}px)`,
               borderLeft: `10px solid ${color}`,
             }}
           >

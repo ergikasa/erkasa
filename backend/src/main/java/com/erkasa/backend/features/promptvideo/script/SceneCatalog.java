@@ -67,8 +67,8 @@ public final class SceneCatalog {
             Template.CLASSIC, List.of("title", "flow", "list", "stat", "compare", "code", "image", "cta"),
             Template.INFOGRAPHIC, List.of("title", "bars", "timeline", "cycle", "iconGrid", "stat", "flow",
                     "compare", "list", "cta"),
-            Template.ANIMATED_2D, List.of("title", "character", "iconLink", "metaphor", "beforeAfter", "zoom",
-                    "flow", "list", "stat", "cta"));
+            Template.ANIMATED_2D, List.of("title", "character", "exchange", "browser", "iconLink", "metaphor",
+                    "beforeAfter", "zoom", "flow", "list", "stat", "cta"));
 
     private SceneCatalog() {
     }
@@ -94,7 +94,7 @@ public final class SceneCatalog {
 
     /** True when the template uses icons from {@link #ICONS} (the prompt then lists them). */
     static boolean usesIcons(Template template) {
-        return types(template).stream().anyMatch(t -> t.equals("iconGrid") || t.equals("iconLink")
+        return types(template).stream().anyMatch(t -> t.equals("iconGrid") || t.equals("iconLink") || t.equals("exchange")
                 || t.equals("metaphor") || t.equals("beforeAfter") || t.equals("zoom") || t.equals("character"));
     }
 
@@ -128,6 +128,18 @@ public final class SceneCatalog {
                 + "the comparison (max 6 words, e.g. \"like a restaurant waiter\"), icons = [idea icon, metaphor icon].");
         g.put("beforeAfter", "leftTitle (the before), rightTitle (the after), icons = [before icon, after icon], "
                 + "left and right = 0-3 short rows each.");
+        g.put("exchange", "SHOWS an action: 2-3 parties send messages back and forth (a question and its answer, "
+                + "a handshake, a payment and its receipt, a login and its token). items = the parties (1-3 words), "
+                + "icons = one icon per party, messages = 1-4 messages in order, each {from, to, label}: from and to "
+                + "are party numbers from 0, label = what travels (max 5 words). A message leaves when the narration "
+                + "says the first word of its label, so say every label's first word, in order. subtitle = the result "
+                + "after the last message (max 3 words, e.g. \"Connected\"), may be empty. pose = the host standing "
+                + "beside the diagram, or \"\" for none. Use it whenever the narration says that something asks, "
+                + "sends, answers or replies; never show such a process as a plain list.");
+        g.put("browser", "a browser window: the address is typed, then the page loads and is built. title = the "
+                + "address (e.g. \"example.com\"), items = 0-4 parts of the page that load in order (1-3 words, e.g. "
+                + "HTML, Styles, Images; the narration says each), pose = the host or \"\". Good for a web or app "
+                + "topic: the first scene, or the moment the result appears on screen.");
         g.put("zoom", "the camera zooms into one object to show its parts. title = the object (max 3 words), "
                 + "icons = [object icon], items = 2-4 parts or details (1-4 words each).");
         return g;

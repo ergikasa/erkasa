@@ -3,29 +3,82 @@ import { AbsoluteFill, spring, useCurrentFrame, useVideoConfig } from 'remotion'
 import { AspectRatio, Word } from './spec';
 import { theme } from './theme';
 
-/** At most this many words on screen at once; a chunk also ends after . ! ? , : ; */
-const WORDS_PER_CHUNK = 3;
+/** A caption line never has more than this many words or letters (it must stay one or two lines). */
+const MAX_WORDS = 5;
+const MAX_CHARS = 26;
 
 type Chunk = { words: Word[]; start: number; end: number };
 
-/** Groups word timings into short lines like "THIS IS ERKASA" -> "YOUR IDEAS," -> ... */
+const SENTENCE_END = /[.!?…]["')»]*$/;
+const PAUSE = /[,:;—–]["')»]*$/;
+/** Words that belong to the next word: articles, prepositions, "your"... (EN, SQ and 1-2 letter words). */
+const GLUE = new Set([
+  'the', 'and', 'for', 'with', 'from', 'your', 'our', 'their', 'its', 'into', 'than', 'that', 'this', 'what', 'when',
+  'një', 'dhe', 'për', 'nga', 'që', 'më', 'tek', 'sa', 'kur', 'çfarë',
+]);
+/** Never end a line on a glue word ("a", "the", "to", "në", "të"...). */
+const isGlue = (w: string) => {
+  if (PAUSE.test(w) || SENTENCE_END.test(w)) return false;
+  const bare = w.replace(/[^\p{L}]/gu, '').toLowerCase();
+  return bare.length <= 2 || GLUE.has(bare);
+};
+
+/**
+ * Groups word timings into caption lines that read as phrases (9.4b):
+ *  - a line ends at the end of a sentence, and at a comma / colon once it has 2+ words;
+ *  - otherwise at MAX_WORDS / MAX_CHARS, but never right after a short word like "a" or "the";
+ *  - a single word is never left alone on a line: it joins the line before or after it.
+ */
 export function chunk(words: Word[]): Chunk[] {
-  const chunks: Chunk[] = [];
+  const lines: Word[][] = [];
   let current: Word[] = [];
-  const flush = () => {
-    if (current.length) {
-      chunks.push({ words: current, start: current[0].startSeconds, end: current[current.length - 1].endSeconds });
+  const chars = (ws: Word[]) => ws.reduce((n, w) => n + w.word.length + 1, 0);
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    current.push(w);
+    const next = words[i + 1];
+    const full = current.length >= MAX_WORDS || chars(current) >= MAX_CHARS;
+    const end =
+      SENTENCE_END.test(w.word) ||
+      (PAUSE.test(w.word) && (current.length >= 2 || lines.length === 0 || SENTENCE_END.test(lines[lines.length - 1].slice(-1)[0].word))) ||
+      (full && !isGlue(w.word)) ||
+      // a long pause in the voice also ends the line
+      (next != null && next.startSeconds - w.endSeconds > 0.45 && current.length >= 2);
+    if (end) {
+      lines.push(current);
       current = [];
     }
-  };
-  for (const w of words) {
-    current.push(w);
-    if (current.length >= WORDS_PER_CHUNK || /[.!?,:;]$/.test(w.word)) {
-      flush();
+  }
+  if (current.length) lines.push(current);
+
+  // no lonely words: join them to a neighbour that has room. An intro word that ends with a comma
+  // ("First,", "So,") may stay alone: it reads as a beat, not as a broken phrase.
+  for (let i = 0; i < lines.length; i++) {
+    const w = lines[i][0];
+    if (lines[i].length !== 1 || lines.length === 1 || PAUSE.test(w.word)) continue;
+    const prev = lines[i - 1];
+    const next = lines[i + 1];
+    const prevOpen = prev && !SENTENCE_END.test(prev[prev.length - 1].word);
+    // the last word of a sentence goes back to its sentence (one extra word is fine), never forward
+    if (SENTENCE_END.test(w.word)) {
+      if (prevOpen && prev.length <= MAX_WORDS) {
+        prev.push(w);
+        lines.splice(i--, 1);
+      }
+      continue;
+    }
+    if (prevOpen && prev.length < MAX_WORDS) {
+      prev.push(w);
+      lines.splice(i--, 1);
+    } else if (next && next.length < MAX_WORDS) {
+      next.unshift(w);
+      lines.splice(i--, 1);
+    } else if (prev && prev.length < MAX_WORDS) {
+      prev.push(w);
+      lines.splice(i--, 1);
     }
   }
-  flush();
-  return chunks;
+  return lines.map((ws) => ({ words: ws, start: ws[0].startSeconds, end: ws[ws.length - 1].endSeconds }));
 }
 
 /**

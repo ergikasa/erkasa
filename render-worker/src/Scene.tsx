@@ -1,5 +1,5 @@
 import React from 'react';
-import { AbsoluteFill, Audio, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Audio, Easing, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
 import { Captions } from './Captions';
 import { Graphic } from './Graphics';
 import { src } from './media';
@@ -14,6 +14,9 @@ const MOVES = [
 ];
 
 const FADE_FRAMES = 8;
+/** graphic scenes: slide in / out (frames) */
+const ENTER_FRAMES = 12;
+const EXIT_FRAMES = 9;
 
 /**
  * One scene: the image with a slow Ken Burns move, the voice-over, the on-screen text
@@ -37,9 +40,19 @@ export const Scene: React.FC<{ scene: SpecScene; index: number; aspectRatio: Asp
   const visual = normalizeVisual(scene.visual);
 
   if (visual.type !== 'image') {
+    // graphics: no fade from black; the new scene slides in over the continuous background
+    // and the old one slides out, so cuts feel like one moving stage (9.4b)
+    const enterK = interpolate(frame, [0, ENTER_FRAMES], [0, 1], { extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) });
+    const exitK = interpolate(frame, [durationInFrames - EXIT_FRAMES, durationInFrames - 1], [0, 1], {
+      extrapolateLeft: 'clamp',
+      extrapolateRight: 'clamp',
+      easing: Easing.in(Easing.cubic),
+    });
     return (
-      <AbsoluteFill style={{ opacity }}>
-        <Graphic visual={visual} words={scene.words} audioSeconds={scene.audioSeconds} aspectRatio={aspectRatio} />
+      <AbsoluteFill>
+        <AbsoluteFill style={{ opacity: enterK * (1 - exitK), transform: `translateX(${(1 - enterK) * 110 - exitK * 90}px)` }}>
+          <Graphic visual={visual} words={scene.words} audioSeconds={scene.audioSeconds} aspectRatio={aspectRatio} />
+        </AbsoluteFill>
         {captions ? <Captions words={scene.words} aspectRatio={aspectRatio} onGraphic /> : null}
         {scene.audio ? <Audio src={src(scene.audio)} /> : null}
       </AbsoluteFill>

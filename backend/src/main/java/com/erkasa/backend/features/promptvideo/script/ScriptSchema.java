@@ -67,6 +67,20 @@ public final class ScriptSchema {
         return Map.of("type", "array", "items", cue);
     }
 
+    /** One message of an exchange: {from, to, label} (see {@link Message}). */
+    private static Map<String, Object> message() {
+        Map<String, Object> props = new LinkedHashMap<>();
+        props.put("from", Map.of("type", "integer"));
+        props.put("to", Map.of("type", "integer"));
+        props.put("label", Map.of("type", "string"));
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("type", "object");
+        m.put("properties", props);
+        m.put("required", List.of("from", "to", "label"));
+        m.put("additionalProperties", false);
+        return m;
+    }
+
     /** The flat visual object (see {@link Visual}): every field present, unused ones empty. */
     private static Map<String, Object> visual(Template template) {
         Map<String, Object> str = Map.of("type", "string");
@@ -93,6 +107,8 @@ public final class ScriptSchema {
         props.put("labels", strings);
         props.put("icons", strings);
         props.put("pose", str);
+        // 9.4b: exchange scenes - who sends what to whom
+        props.put("messages", Map.of("type", "array", "items", message()));
 
         Map<String, Object> visual = new LinkedHashMap<>();
         visual.put("type", "object");

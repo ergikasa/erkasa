@@ -19,7 +19,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { Effect, RenderSpec, SpecScene, Word, cueTimes, fpsOf, normalizeVisual, sceneFrames } from './spec';
+import { Effect, RenderSpec, SpecScene, Word, cueTimes, fpsOf, messageTimes, normalizeVisual, sceneFrames } from './spec';
 
 /** key -> loudness (0..1). Same keys as the backend's SoundEffects.CATALOG. */
 export const SOUNDS: Record<string, number> = {
@@ -116,6 +116,11 @@ function itemTimes(scene: SpecScene): number[] {
     case 'iconLink':
     case 'zoom':
       return cueTimes(v.items, words, a);
+    case 'exchange':
+      // a pop when each message lands
+      return messageTimes(v.messages, words, a).map((m) => m.arrive);
+    case 'browser':
+      return v.items.length ? cueTimes(v.items, words, a) : [];
     case 'compare': {
       const left = cueTimes([v.leftTitle, ...v.left], words, a * 0.5);
       const right = cueTimes([v.rightTitle, ...v.right], words.filter((w) => w.startSeconds >= a * 0.4), a)

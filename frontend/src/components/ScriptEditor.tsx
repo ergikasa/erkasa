@@ -289,6 +289,33 @@ const VisualFields: React.FC<{ visual: Visual; onChange: (patch: Partial<Visual>
           <Lines label={f('details')} value={v.items} onChange={(items) => onChange({ items })} />
         </div>
       );
+    // ---- action scenes (9.4b): parties, directions and icons stay; texts can change ----
+    case 'exchange':
+      return (
+        <div className="space-y-4">
+          <Pairs
+            rows={v.items}
+            left={(i) => <ReadOnly label={f('icon')} value={v.icons?.[i] ?? '—'} mono />}
+            right={(i) => <TextField label={f('party')} value={v.items[i]} onChange={(e) => onChange({ items: setAt(v.items, i, e.target.value) })} />}
+          />
+          {(v.messages ?? []).map((m, k) => (
+            <TextField
+              key={k}
+              label={`${f('message')} ${k + 1}: ${v.items[m.from] ?? '?'} → ${v.items[m.to] ?? '?'}`}
+              value={m.label}
+              onChange={(e) => onChange({ messages: setAt(v.messages ?? [], k, { ...m, label: e.target.value }) })}
+            />
+          ))}
+          <TextField label={f('result')} value={v.subtitle} onChange={(e) => onChange({ subtitle: e.target.value })} />
+        </div>
+      );
+    case 'browser':
+      return (
+        <div className="space-y-3">
+          <TextField label={f('address')} value={v.title} onChange={(e) => onChange({ title: e.target.value })} />
+          <Lines label={f('loads')} value={v.items} onChange={(items) => onChange({ items })} />
+        </div>
+      );
     default:
       return null;
   }
@@ -313,6 +340,7 @@ export function cleanScript(script: VideoScript): VideoScript {
             left: lines(s.visual.left),
             right: lines(s.visual.right),
             ...(s.visual.labels ? { labels: s.visual.labels.map((x) => x.trim()) } : {}),
+            ...(s.visual.messages ? { messages: s.visual.messages.map((m) => ({ ...m, label: m.label.trim() })) } : {}),
           }
         : s.visual,
     })),

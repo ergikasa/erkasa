@@ -152,8 +152,10 @@ public final class ScriptPrompts {
                     + "where a real picture helps.";
             case INFOGRAPHIC -> "animated infographic: charts, timelines, cycles, icon grids and numbers. "
                     + "Show structure and data, not decoration.";
-            case ANIMATED_2D -> "flat 2D animated explainer: a simple character, icons joined by arrows, "
-                    + "metaphors and before/after scenes. Make abstract ideas visible with simple objects.";
+            case ANIMATED_2D -> "flat 2D animated explainer: one person (the host) guides the viewer; things "
+                    + "HAPPEN on screen (messages travel between parties, a page loads) instead of labels just "
+                    + "appearing. Make abstract ideas visible with simple objects. Give the host a pose on about half "
+                    + "of the exchange and browser scenes, and pick the pose that fits what the narration says.";
         };
     }
 

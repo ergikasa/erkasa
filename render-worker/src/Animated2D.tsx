@@ -81,6 +81,16 @@ const POSES: Record<string, { body: string; face: string; shot: Shot }> = {
   sitting: { body: 'ClosedLegWB', face: 'Calm', shot: 'sitting' },
 };
 
+/**
+ * The host beside a diagram is always a full figure, so it keeps the same size from scene to
+ * scene: close-up (bust) poses are swapped for the nearest full-body one.
+ */
+export function hostPose(pose: string): string {
+  const p = POSES[pose];
+  if (!p || p.shot === 'full') return p ? pose : 'standing';
+  return ({ presenting: 'pointing', idea: 'pointing', working: 'standing', phone: 'standing', sitting: 'standing' } as Record<string, string>)[pose] ?? 'standing';
+}
+
 /** What part of the drawing to show for each kind of shot (Open Peeps coordinates). */
 const VIEW: Record<Shot, { x: string; y: string; width: string; height: string; ratio: number }> = {
   full: { x: '-250', y: '-20', width: '1500', height: '2720', ratio: 1500 / 2720 },
@@ -89,7 +99,13 @@ const VIEW: Record<Shot, { x: string; y: string; width: string; height: string; 
 };
 
 /** The person in a pose, with a soft coloured disc behind so the line art reads on any theme. */
-export const Person: React.FC<{ pose: string; height: number; enterAt?: number }> = ({ pose, height, enterAt = 0 }) => {
+export const Person: React.FC<{ pose: string; height: number; enterAt?: number; reactAt?: number[]; flip?: boolean }> = ({
+  pose,
+  height,
+  enterAt = 0,
+  reactAt = [],
+  flip = false,
+}) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const p = POSES[pose] ?? POSES.standing;
@@ -98,8 +114,23 @@ export const Person: React.FC<{ pose: string; height: number; enterAt?: number }
   const enter = spring({ frame: frame - Math.round(enterAt * fps), fps, config: { damping: 13, stiffness: 120 } });
   // a slow "breathing" bob so the person never looks frozen
   const bob = Math.sin(frame / 14) * 6;
+  // blinks: eyes closed for 3 frames about every 3 seconds (never in the first second)
+  const blink = frame > fps && (frame + 37) % 97 < 3;
+  // a small hop when something happens next to the person (a message arrives, a step is done)
+  const hop = reactAt.reduce((acc, at) => {
+    const f = frame - Math.round(at * fps);
+    return f >= 0 && f < 14 ? Math.max(acc, Math.sin((f / 14) * Math.PI)) : acc;
+  }, 0);
   return (
-    <div style={{ position: 'relative', width, height, opacity: enter, transform: `translateY(${(1 - enter) * 80 + bob}px)` }}>
+    <div
+      style={{
+        position: 'relative',
+        width,
+        height,
+        opacity: enter,
+        transform: `translateY(${(1 - enter) * 80 + bob - hop * 26}px) scaleX(${flip ? -1 : 1})`,
+      }}
+    >
       <div
         style={{
           position: 'absolute',
@@ -115,7 +146,7 @@ export const Person: React.FC<{ pose: string; height: number; enterAt?: number }
       <Peep
         style={{ position: 'absolute', inset: 0, width, height, filter: `drop-shadow(0 12px 24px rgba(0,0,0,0.25))` }}
         body={p.body}
-        face={p.face}
+        face={blink ? 'EyesClosed' : p.face}
         hair={actor.hair}
         facialHair={actor.facialHair}
         strokeColor="#111827"
@@ -133,7 +164,14 @@ function springAt(frame: number, fps: number, atSeconds: number, damping = 14): 
 }
 
 /** An icon in a coloured circle, floating a little. */
-const IconBadge: React.FC<{ name: string; size: number; color: string; appear: number; float?: number }> = ({ name, size, color, appear, float = 0 }) => {
+const IconBadge: React.FC<{ name: string; size: number; color: string; appear: number; float?: number; ghost?: number }> = ({
+  name,
+  size,
+  color,
+  appear,
+  float = 0,
+  ghost = 0,
+}) => {
   const frame = useCurrentFrame();
   const y = Math.sin(frame / 18 + float) * 8;
   return (
@@ -149,8 +187,8 @@ const IconBadge: React.FC<{ name: string; size: number; color: string; appear: n
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        opacity: appear,
-        transform: `translateY(${y}px) scale(${0.4 + 0.6 * appear})`,
+        opacity: ghost + (1 - ghost) * appear,
+        transform: `translateY(${y}px) scale(${ghost ? 0.85 + 0.15 * appear : 0.4 + 0.6 * appear})`,
       }}
     >
       <Icon name={name} size={size * 0.52} color={color} />
@@ -260,7 +298,7 @@ const IconLink: React.FC<{ items: string[]; icons: string[]; cues: number[]; asp
         return (
           <React.Fragment key={i}>
             <div style={{ display: 'flex', flexDirection: vertical ? 'row' : 'column', alignItems: 'center', gap: vertical ? 34 : 22, width: vertical ? 760 : size + (square ? 30 : 60) }}>
-              <IconBadge name={icons[i]} size={size} color={color} appear={a} float={i} />
+              <IconBadge name={icons[i]} size={size} color={color} appear={a} float={i} ghost={0.22} />
               <div
                 style={{
                   color: theme.text,
@@ -268,7 +306,7 @@ const IconLink: React.FC<{ items: string[]; icons: string[]; cues: number[]; asp
                   fontSize: vertical ? 54 : square ? 36 : 46,
                   lineHeight: 1.1,
                   textAlign: vertical ? 'left' : 'center',
-                  opacity: a,
+                  opacity: 0.22 + 0.78 * a,
                 }}
               >
                 {label}

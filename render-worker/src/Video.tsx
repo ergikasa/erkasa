@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { AbsoluteFill, Audio, Sequence, Series, interpolate, useVideoConfig } from 'remotion';
 import { Scene } from './Scene';
+import { Backdrop } from './Graphics';
 import { src } from './media';
 import { RenderSpec, fpsOf, sceneFrames } from './spec';
 import { applyTheme, theme } from './theme';
@@ -15,6 +16,8 @@ export const Video: React.FC<RenderSpec> = (spec) => {
   applyCast(spec.title);
   return (
     <AbsoluteFill style={{ backgroundColor: theme.bg }}>
+      {/* one moving background for the whole video (photo scenes cover it) */}
+      <Backdrop />
       <Series>
         {spec.scenes.map((scene, i) => (
           <Series.Sequence key={i} durationInFrames={sceneFrames(scene, fps)} name={`Scene ${i + 1}`}>

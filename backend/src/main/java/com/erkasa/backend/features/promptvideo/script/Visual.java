@@ -31,7 +31,9 @@ import java.util.Set;
  * @param labels     timeline: one date / step label per item (9.2)
  * @param icons      Lucide icon names from SceneCatalog.ICONS: iconGrid, iconLink (one per item),
  *                   metaphor, beforeAfter (two), zoom (one), character (0-2) (9.2)
- * @param pose       character: one of SceneCatalog.POSES (9.2)
+ * @param pose       character: one of SceneCatalog.POSES (9.2); exchange / browser: the host beside
+ *                   the diagram, or "" for none (9.4b)
+ * @param messages   exchange: what the parties send each other, in order (9.4b)
  *
  * The types and their fields per template are listed in {@link SceneCatalog}. Scripts written
  * before 9.2 have no values / labels / icons / pose: they are null and read as empty.
@@ -55,20 +57,31 @@ public record Visual(String type,
                      List<Double> values,
                      List<String> labels,
                      List<String> icons,
-                     String pose) {
+                     String pose,
+                     List<Message> messages) {
 
     public static final String IMAGE = "image";
     /** Every type of every template (which template may use which: SceneCatalog). */
     public static final Set<String> TYPES = Set.of("image", "title", "flow", "list", "stat", "compare", "code", "cta",
             "bars", "timeline", "cycle", "iconGrid",
-            "character", "iconLink", "metaphor", "beforeAfter", "zoom");
+            "character", "iconLink", "metaphor", "beforeAfter", "zoom",
+            "exchange", "browser");
+
+    /** A visual without messages (the shape before 9.4b). */
+    public Visual(String type, String title, String subtitle, List<String> items, Double value, String prefix,
+                  String suffix, String label, String leftTitle, String rightTitle, List<String> left,
+                  List<String> right, String code, String language, String text, String handle,
+                  List<Double> values, List<String> labels, List<String> icons, String pose) {
+        this(type, title, subtitle, items, value, prefix, suffix, label, leftTitle, rightTitle, left, right,
+                code, language, text, handle, values, labels, icons, pose, List.of());
+    }
 
     /** A visual without the 9.2 fields (the shape of every visual before templates). */
     public Visual(String type, String title, String subtitle, List<String> items, Double value, String prefix,
                   String suffix, String label, String leftTitle, String rightTitle, List<String> left,
                   List<String> right, String code, String language, String text, String handle) {
         this(type, title, subtitle, items, value, prefix, suffix, label, leftTitle, rightTitle, left, right,
-                code, language, text, handle, List.of(), List.of(), List.of(), "");
+                code, language, text, handle, List.of(), List.of(), List.of(), "", List.of());
     }
 
     /** The visual type, "image" for scripts written before visuals existed. */
@@ -82,6 +95,7 @@ public record Visual(String type,
     }
 
     public static Visual image() {
-        return new Visual(IMAGE, "", "", List.of(), 0.0, "", "", "", "", "", List.of(), List.of(), "", "", "", "");
+        return new Visual(IMAGE, "", "", List.of(), 0.0, "", "", "", "", "", List.of(), List.of(), "", "", "", "",
+                List.of(), List.of(), List.of(), "", List.of());
     }
 }

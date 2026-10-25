@@ -38,7 +38,13 @@ export type Visual =
   | { type: 'iconLink'; items: string[]; icons: string[] }
   | { type: 'metaphor'; title: string; subtitle: string; icons: string[] }
   | { type: 'beforeAfter'; leftTitle: string; rightTitle: string; left: string[]; right: string[]; icons: string[] }
-  | { type: 'zoom'; title: string; icons: string[]; items: string[] };
+  | { type: 'zoom'; title: string; icons: string[]; items: string[] }
+  // scenes that show an action (9.4b); `pose` = the 2D host next to the diagram ('' = no host)
+  | { type: 'exchange'; actors: string[]; icons: string[]; messages: Message[]; result?: string; pose?: string }
+  | { type: 'browser'; url: string; items: string[]; pose?: string };
+
+/** One message of an exchange: from party `from` to party `to` (0, 1, 2), with a short label. */
+export type Message = { from: number; to: number; label: string };
 
 /** A sound effect the LLM chose: plays on that word of the narration ("" = scene start). */
 export type SoundCue = { sound: string; onWord?: string };
@@ -146,6 +152,19 @@ export function normalizeVisual(raw: unknown): Visual {
       return { type: 'beforeAfter', leftTitle: str('leftTitle'), rightTitle: str('rightTitle'), left: list('left'), right: list('right'), icons: rawList('icons') };
     case 'zoom':
       return { type: 'zoom', title: str('title'), icons: rawList('icons'), items: list('items') };
+    case 'exchange': {
+      // the backend sends the flat form (items, subtitle); demos may write the typed one (actors, result)
+      const actors = rawList('actors').length ? rawList('actors') : rawList('items');
+      const icons = rawList('icons');
+      const messages = Array.isArray(v.messages)
+        ? (v.messages as Record<string, unknown>[])
+            .map((m) => ({ from: Number(m?.from) || 0, to: Number(m?.to) || 0, label: String(m?.label ?? '').trim() }))
+            .filter((m) => m.label)
+        : [];
+      return { type: 'exchange', actors, icons: actors.map((_, i) => icons[i] ?? ''), messages, result: str('result') || str('subtitle') || undefined, pose: str('pose') || undefined };
+    }
+    case 'browser':
+      return { type: 'browser', url: str('url') || str('title') || 'example.com', items: list('items'), pose: str('pose') || undefined };
     default:
       return { type: 'image' };
   }
@@ -243,4 +262,16 @@ export function cueTimes(items: string[], words: Word[], audioSeconds: number): 
     result[i] = Math.max(result[i], result[i - 1] + 0.15);
   }
   return result;
+}
+
+/** How long a message of an exchange takes to travel from one party to the other (9.4b). */
+export const MESSAGE_TRAVEL_SECONDS = 0.75;
+
+/** When each message starts and lands (seconds from the scene start): it leaves when the voice says its label. */
+export function messageTimes(messages: Message[], words: Word[], audioSeconds: number): { start: number; arrive: number }[] {
+  const cues = cueTimes(messages.map((m) => m.label), words, audioSeconds);
+  return cues.map((c) => {
+    const start = Math.max(0.2, c - 0.15);
+    return { start, arrive: start + MESSAGE_TRAVEL_SECONDS };
+  });
 }
