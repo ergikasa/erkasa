@@ -123,6 +123,7 @@ class TemplateScriptTests {
     void templatesThatAreNotReadyFallBackToClassic() {
         assertThat(SceneCatalog.effective(Template.CLASSIC)).isEqualTo(Template.CLASSIC);
         assertThat(SceneCatalog.effective(Template.INFOGRAPHIC)).isEqualTo(Template.INFOGRAPHIC); // 9.3
+        assertThat(SceneCatalog.effective(Template.ANIMATED_2D)).isEqualTo(Template.ANIMATED_2D); // 9.4
         for (Template t : Template.values()) {
             Template expected = SceneCatalog.READY.contains(t) ? t : Template.CLASSIC;
             assertThat(SceneCatalog.effective(t)).isEqualTo(expected);

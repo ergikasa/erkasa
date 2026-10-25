@@ -112,19 +112,32 @@ class ProjectOptionsTests extends AbstractIntegrationTest {
     }
 
     @Test
-    void withoutOptionsTheProjectIsAnExplainer() throws Exception {
+    void withoutOptionsTheProjectIsClassic() throws Exception {
         String token = login();
 
         JsonNode o = create(token, """
                 {"idea": "3 facts about Tirana", "language": "EN", "durationSeconds": 30}
                 """).path("options");
 
+        // 9.4: a request without "options" gets the video as it was before phase 9
         assertThat(o.path("purpose").asString()).isEqualTo("EXPLAINER");
-        assertThat(o.path("template").asString()).isEqualTo("ANIMATED_2D");
+        assertThat(o.path("template").asString()).isEqualTo("CLASSIC");
         assertThat(o.path("audience").asString()).isEqualTo("BEGINNER");
         assertThat(o.path("tone").asString()).isEqualTo("EDUCATIONAL");
         assertThat(o.path("theme").asString()).isEqualTo("DARK");
         assertThat(o.path("captionPosition").asString()).isEqualTo("BOTTOM");
+    }
+
+    @Test
+    void emptyOptionsFollowThePurposeDefaults() throws Exception {
+        String token = login();
+
+        JsonNode o = create(token, """
+                {"idea": "How an API works", "language": "EN", "durationSeconds": 30, "options": {}}
+                """).path("options");
+
+        assertThat(o.path("purpose").asString()).isEqualTo("EXPLAINER");
+        assertThat(o.path("template").asString()).isEqualTo("ANIMATED_2D");
     }
 
     /** Polls GET /api/projects/{id} until it reaches the status, at most 15 seconds. */

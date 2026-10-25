@@ -3,7 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { ScriptEditor, cleanScript } from '../components/ScriptEditor';
 import type { Visual, VideoScript } from '../api/projects';
 
-/* 9.3: the script review can edit the infographic scenes without breaking their pairs. */
+/* 9.3 + 9.4: the script review can edit the infographic and 2D scenes without breaking their pairs. */
 
 const visual = (patch: Partial<Visual>): Visual => ({
   type: 'image', title: '', subtitle: '', items: [], value: 0, prefix: '', suffix: '', label: '',
@@ -49,5 +49,30 @@ describe('infographic scenes in the script editor', () => {
 
     const list = visual({ type: 'list', items: [' One ', '', 'Two'] });
     expect(cleanScript(script(list)).scenes[0].visual!.items).toEqual(['One', 'Two']);
+  });
+});
+
+describe('2D scenes in the script editor', () => {
+  it('shows the pose and edits the speech bubble', () => {
+    const onChange = vi.fn();
+    const person = visual({ type: 'character', pose: 'thinking', text: 'How does it work?', icons: ['circle-question-mark'] });
+    render(<ScriptEditor script={script(person)} targetSeconds={30} onChange={onChange} />);
+
+    expect(screen.getByText('Character')).toBeInTheDocument();
+    expect(screen.getByText('Thinking')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Speech bubble'), { target: { value: 'What is an API?' } });
+    const v = onChange.mock.calls.at(-1)![0].scenes[0].visual;
+    expect(v.text).toBe('What is an API?');
+    expect(v.pose).toBe('thinking');
+    expect(v.icons).toEqual(['circle-question-mark']);
+  });
+
+  it('edits the two sides of a metaphor', () => {
+    const onChange = vi.fn();
+    const m = visual({ type: 'metaphor', title: 'An API', subtitle: 'like a waiter', icons: ['server', 'utensils'] });
+    render(<ScriptEditor script={script(m)} targetSeconds={30} onChange={onChange} />);
+
+    fireEvent.change(screen.getByLabelText('Is like…'), { target: { value: 'like a restaurant waiter' } });
+    expect(onChange.mock.calls.at(-1)![0].scenes[0].visual).toMatchObject({ title: 'An API', subtitle: 'like a restaurant waiter' });
   });
 });

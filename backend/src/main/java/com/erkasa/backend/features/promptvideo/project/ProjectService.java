@@ -109,8 +109,9 @@ public class ProjectService {
                     "Voice " + voiceId + " is not available for " + input.language());
         }
         AspectRatio ratio = input.aspectRatio() == null ? AspectRatio.PORTRAIT : input.aspectRatio();
-        VideoOptions options = input.options() == null ? VideoOptions.withDefaults(
-                null, null, null, null, null, null, null, null) : input.options();
+        // No options at all (old clients, scripts, tests) = the classic video, as before phase 9.
+        // The wizard always sends them.
+        VideoOptions options = input.options() == null ? VideoOptions.classic() : input.options();
 
         Created created = tx.execute(status -> {
             Project project = projects.save(Project.create(userId, input.idea().strip(), input.language(),

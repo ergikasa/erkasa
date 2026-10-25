@@ -4,12 +4,15 @@ import { Scene } from './Scene';
 import { src } from './media';
 import { RenderSpec, fpsOf, sceneFrames } from './spec';
 import { applyTheme, theme } from './theme';
+import { applyCast } from './Animated2D';
 
 /** The whole video: the scenes one after another, music underneath. */
 export const Video: React.FC<RenderSpec> = (spec) => {
   const fps = fpsOf(spec);
   // before any scene is drawn: every graphic reads its colours from `theme` (9.3)
   applyTheme(spec.theme);
+  // the same 2D person in every scene of this video (9.4)
+  applyCast(spec.title);
   return (
     <AbsoluteFill style={{ backgroundColor: theme.bg }}>
       <Series>

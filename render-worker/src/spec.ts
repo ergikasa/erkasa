@@ -32,7 +32,13 @@ export type Visual =
   | { type: 'bars'; title?: string; items: string[]; values: number[]; prefix?: string; suffix?: string }
   | { type: 'timeline'; items: string[]; labels: string[] }
   | { type: 'cycle'; title?: string; items: string[] }
-  | { type: 'iconGrid'; items: string[]; icons: string[] };
+  | { type: 'iconGrid'; items: string[]; icons: string[] }
+  // ANIMATED_2D template (9.4)
+  | { type: 'character'; pose: string; text?: string; icons: string[] }
+  | { type: 'iconLink'; items: string[]; icons: string[] }
+  | { type: 'metaphor'; title: string; subtitle: string; icons: string[] }
+  | { type: 'beforeAfter'; leftTitle: string; rightTitle: string; left: string[]; right: string[]; icons: string[] }
+  | { type: 'zoom'; title: string; icons: string[]; items: string[] };
 
 /** A sound effect the LLM chose: plays on that word of the narration ("" = scene start). */
 export type SoundCue = { sound: string; onWord?: string };
@@ -127,6 +133,19 @@ export function normalizeVisual(raw: unknown): Visual {
       const icons = rawList('icons');
       return { type: 'iconGrid', items, icons: items.map((_, i) => icons[i] ?? '') };
     }
+    case 'character':
+      return { type: 'character', pose: str('pose') || 'standing', text: str('text') || undefined, icons: list('icons') };
+    case 'iconLink': {
+      const items = rawList('items');
+      const icons = rawList('icons');
+      return { type: 'iconLink', items, icons: items.map((_, i) => icons[i] ?? '') };
+    }
+    case 'metaphor':
+      return { type: 'metaphor', title: str('title'), subtitle: str('subtitle'), icons: rawList('icons') };
+    case 'beforeAfter':
+      return { type: 'beforeAfter', leftTitle: str('leftTitle'), rightTitle: str('rightTitle'), left: list('left'), right: list('right'), icons: rawList('icons') };
+    case 'zoom':
+      return { type: 'zoom', title: str('title'), icons: rawList('icons'), items: list('items') };
     default:
       return { type: 'image' };
   }

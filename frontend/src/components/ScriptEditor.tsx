@@ -105,6 +105,14 @@ function setAt<T>(list: T[], i: number, value: T): T[] {
   return copy;
 }
 
+/** A value the editor shows but does not change (an icon name, a pose). */
+const ReadOnly: React.FC<{ label: string; value: string; mono?: boolean }> = ({ label, value, mono }) => (
+  <div>
+    <p className="mb-1.5 text-sm font-medium text-muted">{label}</p>
+    <p className={`flex min-h-12 items-center rounded-xl border border-line bg-surface-2 px-3 text-sm text-muted ${mono ? 'font-mono' : ''}`}>{value}</p>
+  </div>
+);
+
 /** One row per item with two fields side by side (label + number, date + event, icon + text). */
 const Pairs: React.FC<{ rows: string[]; left: (i: number) => React.ReactNode; right: (i: number) => React.ReactNode }> = ({ rows, left, right }) => (
   <div className="space-y-3">
@@ -232,16 +240,54 @@ const VisualFields: React.FC<{ visual: Visual; onChange: (patch: Partial<Visual>
       return (
         <Pairs
           rows={v.items}
-          left={(i) => (
-            <div>
-              <p className="mb-1.5 text-sm font-medium text-muted">{f('icon')}</p>
-              <p className="flex min-h-12 items-center rounded-xl border border-line bg-surface-2 px-3 font-mono text-sm text-muted">{v.icons?.[i] ?? '—'}</p>
-            </div>
-          )}
+          left={(i) => <ReadOnly label={f('icon')} value={v.icons?.[i] ?? '—'} mono />}
           right={(i) => (
             <TextField label={f('point')} value={v.items[i]} onChange={(e) => onChange({ items: setAt(v.items, i, e.target.value) })} />
           )}
         />
+      );
+    // ---- ANIMATED_2D (9.4): pose and icons stay as the AI chose them; texts can change ----
+    case 'character':
+      return (
+        <div className="space-y-3">
+          <ReadOnly label={f('pose')} value={t(`pose.${v.pose}`, { defaultValue: v.pose ?? '' })} />
+          <TextField label={f('speech')} value={v.text} onChange={(e) => onChange({ text: e.target.value })} />
+        </div>
+      );
+    case 'iconLink':
+      return (
+        <Pairs
+          rows={v.items}
+          left={(i) => <ReadOnly label={f('icon')} value={v.icons?.[i] ?? '—'} mono />}
+          right={(i) => <TextField label={f('barLabel')} value={v.items[i]} onChange={(e) => onChange({ items: setAt(v.items, i, e.target.value) })} />}
+        />
+      );
+    case 'metaphor':
+      return (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField label={f('idea')} value={v.title} onChange={(e) => onChange({ title: e.target.value })} />
+          <TextField label={f('comparison')} value={v.subtitle} onChange={(e) => onChange({ subtitle: e.target.value })} />
+        </div>
+      );
+    case 'beforeAfter':
+      return (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-3">
+            <TextField label={f('before')} value={v.leftTitle} onChange={(e) => onChange({ leftTitle: e.target.value })} />
+            <Lines label={f('left')} value={v.left} onChange={(left) => onChange({ left })} />
+          </div>
+          <div className="space-y-3">
+            <TextField label={f('after')} value={v.rightTitle} onChange={(e) => onChange({ rightTitle: e.target.value })} />
+            <Lines label={f('right')} value={v.right} onChange={(right) => onChange({ right })} />
+          </div>
+        </div>
+      );
+    case 'zoom':
+      return (
+        <div className="space-y-3">
+          <TextField label={f('object')} value={v.title} onChange={(e) => onChange({ title: e.target.value })} />
+          <Lines label={f('details')} value={v.items} onChange={(items) => onChange({ items })} />
+        </div>
       );
     default:
       return null;

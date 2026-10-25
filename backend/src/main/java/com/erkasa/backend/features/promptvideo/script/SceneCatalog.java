@@ -21,8 +21,8 @@ import com.erkasa.backend.jobs.VideoOptions.Template;
  */
 public final class SceneCatalog {
 
-    /** Templates the render worker can draw today (INFOGRAPHIC since 9.3). */
-    public static final Set<Template> READY = EnumSet.of(Template.CLASSIC, Template.INFOGRAPHIC);
+    /** Templates the render worker can draw today (INFOGRAPHIC since 9.3, ANIMATED_2D since 9.4). */
+    public static final Set<Template> READY = EnumSet.of(Template.CLASSIC, Template.INFOGRAPHIC, Template.ANIMATED_2D);
 
     /**
      * Lucide icon names (lucide.dev, lucide-react 1.61) the LLM may choose. Keep in sync with
@@ -52,9 +52,12 @@ public final class SceneCatalog {
             "pill", "dumbbell", "apple", "coffee", "utensils", "camera", "eighth-notes", "headphones", "gamepad-2",
             "scale", "gavel");
 
-    /** Character poses the LLM may choose for "character" scenes (mapped to Open Peeps art in 9.4). */
+    /**
+     * Character poses the LLM may choose for "character" scenes. Keep in sync with the POSES map in
+     * render-worker/src/Animated2D.tsx, which turns each into an Open Peeps body + face (9.4).
+     */
     public static final List<String> POSES = List.of(
-            "standing", "waving", "pointing", "presenting", "thinking", "confused", "surprised",
+            "standing", "waving", "pointing", "presenting", "idea", "thinking", "confused", "surprised",
             "happy", "celebrating", "worried", "working", "phone", "walking", "sitting");
 
     /** type -> what the LLM fills (the order is the order the prompt lists them). */

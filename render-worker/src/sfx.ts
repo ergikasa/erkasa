@@ -113,6 +113,8 @@ function itemTimes(scene: SpecScene): number[] {
     case 'timeline':
     case 'cycle':
     case 'iconGrid':
+    case 'iconLink':
+    case 'zoom':
       return cueTimes(v.items, words, a);
     case 'compare': {
       const left = cueTimes([v.leftTitle, ...v.left], words, a * 0.5);

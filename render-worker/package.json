@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "demo": "tsx src/make-demo.ts",
     "demo:info": "tsx src/make-info-demo.ts",
+    "demo:2d": "tsx src/make-2d-demo.ts",
     "worker": "tsx src/worker.ts",
     "bench": "tsx src/bench.ts",
     "make-sfx": "tsx src/make-sfx.ts"
@@ -25,6 +26,7 @@
     "lucide-react": "1.61.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
+    "react-peeps": "0.1.10",
     "remotion": "4.0.537"
   },
   "devDependencies": {

@@ -3,6 +3,7 @@ import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig, Eas
 import { AspectRatio, Visual, Word, cueTimes } from './spec';
 import { panelStyle, theme } from './theme';
 import { Infographic, isInfographic } from './Infographics';
+import { Animated2D, isAnimated2D } from './Animated2D';
 
 type Props = { visual: Exclude<Visual, { type: 'image' }>; words: Word[]; audioSeconds: number; aspectRatio: AspectRatio };
 
@@ -49,8 +50,10 @@ const Body: React.FC<Props> = ({ visual, words, audioSeconds, aspectRatio }) => 
     case 'cta':
       return <Cta text={visual.text} handle={visual.handle} aspectRatio={aspectRatio} />;
     default:
-      // bars, timeline, cycle, iconGrid (9.3)
-      return isInfographic(visual) ? <Infographic visual={visual} words={words} audioSeconds={audioSeconds} aspectRatio={aspectRatio} /> : null;
+      // bars, timeline, cycle, iconGrid (9.3); character, iconLink, metaphor, beforeAfter, zoom (9.4)
+      if (isInfographic(visual)) return <Infographic visual={visual} words={words} audioSeconds={audioSeconds} aspectRatio={aspectRatio} />;
+      if (isAnimated2D(visual)) return <Animated2D visual={visual} words={words} audioSeconds={audioSeconds} aspectRatio={aspectRatio} />;
+      return null;
   }
 };
 
