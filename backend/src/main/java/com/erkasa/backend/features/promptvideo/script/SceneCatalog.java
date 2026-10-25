@@ -21,32 +21,35 @@ import com.erkasa.backend.jobs.VideoOptions.Template;
  */
 public final class SceneCatalog {
 
-    /** Templates the render worker can draw today. */
-    public static final Set<Template> READY = EnumSet.of(Template.CLASSIC);
+    /** Templates the render worker can draw today (INFOGRAPHIC since 9.3). */
+    public static final Set<Template> READY = EnumSet.of(Template.CLASSIC, Template.INFOGRAPHIC);
 
-    /** Lucide icon names (lucide.dev) the LLM may choose. Keep in sync with the render worker (9.3). */
+    /**
+     * Lucide icon names (lucide.dev, lucide-react 1.61) the LLM may choose. Keep in sync with
+     * render-worker/src/icons.ts (9.3); a name Lucide does not have breaks nothing but shows a plain circle.
+     */
     public static final List<String> ICONS = List.of(
             // people and places
-            "user", "users", "baby", "smile", "frown", "house", "building-2", "store", "factory", "school",
+            "user", "users", "baby", "face-slightly-smiling", "face-slightly-frowning", "house", "building", "store", "factory", "school",
             "hospital", "map", "map-pin", "globe",
             // work and money
             "briefcase", "handshake", "dollar-sign", "euro", "wallet", "credit-card", "piggy-bank", "coins",
             "receipt", "shopping-cart", "package", "truck", "megaphone", "presentation", "calculator",
             // tech
             "laptop", "smartphone", "monitor", "server", "database", "cloud", "wifi", "cpu", "code",
-            "terminal", "git-branch", "bug", "lock", "key", "shield-check", "fingerprint", "bot", "link",
+            "terminal", "git-branch", "bug", "lock", "key", "shield-check", "fingerprint-pattern", "bot", "link",
             "mail", "message-circle", "bell", "search", "settings", "wrench", "rocket",
             // data and time
             "chart-bar", "chart-line", "chart-pie", "trending-up", "trending-down", "calendar", "clock",
             "hourglass", "timer", "file-text", "folder", "layers", "list-checks", "target", "flag",
             // ideas and learning
             "lightbulb", "brain", "book-open", "graduation-cap", "puzzle", "sparkles", "zap", "eye",
-            "circle-help", "circle-check", "circle-x", "triangle-alert", "thumbs-up", "thumbs-down",
+            "circle-question-mark", "circle-check", "circle-x", "triangle-alert", "thumbs-up", "thumbs-down",
             "trophy", "star", "heart", "gift",
             // transport, nature, health, daily life
             "car", "bus", "train-front", "plane", "ship", "bike", "sun", "moon", "cloud-rain", "droplet",
             "flame", "leaf", "trees", "recycle", "battery-charging", "plug", "heart-pulse", "stethoscope",
-            "pill", "dumbbell", "apple", "coffee", "utensils", "camera", "music", "headphones", "gamepad-2",
+            "pill", "dumbbell", "apple", "coffee", "utensils", "camera", "eighth-notes", "headphones", "gamepad-2",
             "scale", "gavel");
 
     /** Character poses the LLM may choose for "character" scenes (mapped to Open Peeps art in 9.4). */

@@ -40,7 +40,7 @@ export const Scene: React.FC<{ scene: SpecScene; index: number; aspectRatio: Asp
     return (
       <AbsoluteFill style={{ opacity }}>
         <Graphic visual={visual} words={scene.words} audioSeconds={scene.audioSeconds} aspectRatio={aspectRatio} />
-        {captions ? <Captions words={scene.words} aspectRatio={aspectRatio} /> : null}
+        {captions ? <Captions words={scene.words} aspectRatio={aspectRatio} onGraphic /> : null}
         {scene.audio ? <Audio src={src(scene.audio)} /> : null}
       </AbsoluteFill>
     );

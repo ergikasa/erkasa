@@ -15,6 +15,7 @@ import com.erkasa.backend.providers.ProviderUsage;
  * - Free text request: echoes the prompt.
  * - Request with a script schema (has "scenes"): returns a fake but VALID video script whose
  *   length fits the "Target duration" in the prompt, so the whole pipeline can run for free.
+ *   Image scenes, or "list" scenes for templates without AI images (INFOGRAPHIC, 9.3).
  *
  * Token counts are rough estimates (about 4 characters per token), cost is always 0.
  */
@@ -38,7 +39,10 @@ public class MockLlmProvider implements LlmProvider {
     @Override
     public LlmResponse generate(LlmRequest request) {
         String prompt = request.userPrompt() == null ? "" : request.userPrompt();
-        String text = isScriptSchema(request.jsonSchema()) ? mockScript(prompt) : echo(prompt);
+        // templates without AI images (INFOGRAPHIC, ANIMATED_2D, 9.3) get graphic scenes instead
+        boolean graphicsOnly = request.systemPrompt() != null
+                && request.systemPrompt().contains("there are no photos or AI images");
+        String text = isScriptSchema(request.jsonSchema()) ? mockScript(prompt, graphicsOnly) : echo(prompt);
 
         long inputTokens = estimateTokens(request.systemPrompt()) + estimateTokens(prompt);
         return new LlmResponse(text, ProviderUsage.free(model(), "tokens", inputTokens, estimateTokens(text)));
@@ -58,7 +62,7 @@ public class MockLlmProvider implements LlmProvider {
     }
 
     /** About one scene per 8 seconds, with narration that takes about 90% of the target time. */
-    private static String mockScript(String prompt) {
+    private static String mockScript(String prompt, boolean graphicsOnly) {
         int seconds = 45;
         Matcher d = DURATION.matcher(prompt);
         if (d.find()) {
@@ -79,8 +83,10 @@ public class MockLlmProvider implements LlmProvider {
             }
             json.append("{\"narration\":\"").append(escape(narration(n, wordsPerScene))).append("\",")
                     .append("\"onScreenText\":\"Scene ").append(n).append("\",")
-                    .append("\"imagePrompt\":\"").append(escape("Mock scene " + n + " illustrating: " + idea))
+                    .append("\"imagePrompt\":\"")
+                    .append(graphicsOnly ? "" : escape("Mock scene " + n + " illustrating: " + idea))
                     .append("\",")
+                    .append(graphicsOnly ? "\"visual\":{\"type\":\"list\",\"items\":[\"Mock point one\",\"Mock point two\"]}," : "")
                     // one sound effect in the first scene, like the real LLM may choose (5.6)
                     .append("\"sfx\":").append(n == 1 ? "[{\"sound\":\"ding\",\"onWord\":\"mock\"}]" : "[]")
                     .append("}");

@@ -76,6 +76,6 @@ public class RenderSpecBuilder {
         // The worker picks a track from its music/<mood>/ folder; no track = no music (5.4).
         String music = script.musicMood() == null || script.musicMood().isBlank() ? null : "mood:" + script.musicMood();
         return new RenderMessages.Spec(project.getAspectRatio().name(), FPS, script.title(), music, MUSIC_VOLUME,
-                true, scenes);
+                true, project.options().theme().name(), scenes);
     }
 }

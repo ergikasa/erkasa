@@ -122,6 +122,7 @@ class TemplateScriptTests {
     @Test
     void templatesThatAreNotReadyFallBackToClassic() {
         assertThat(SceneCatalog.effective(Template.CLASSIC)).isEqualTo(Template.CLASSIC);
+        assertThat(SceneCatalog.effective(Template.INFOGRAPHIC)).isEqualTo(Template.INFOGRAPHIC); // 9.3
         for (Template t : Template.values()) {
             Template expected = SceneCatalog.READY.contains(t) ? t : Template.CLASSIC;
             assertThat(SceneCatalog.effective(t)).isEqualTo(expected);
@@ -146,7 +147,7 @@ class TemplateScriptTests {
 
     @Test
     void aGoodAnimatedScriptPasses() {
-        Visual character = v("character", "", "", List.of(), List.of(), List.of(), List.of("circle-help"), "thinking");
+        Visual character = v("character", "", "", List.of(), List.of(), List.of(), List.of("circle-question-mark"), "thinking");
         Visual metaphor = v("metaphor", "An API", "like a restaurant waiter", List.of(), List.of(), List.of(),
                 List.of("server", "utensils"), "");
         Visual link = v("iconLink", "", "", List.of("App", "API", "Database"), List.of(), List.of(),

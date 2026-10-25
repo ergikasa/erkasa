@@ -127,6 +127,40 @@ class ProjectOptionsTests extends AbstractIntegrationTest {
         assertThat(o.path("captionPosition").asString()).isEqualTo("BOTTOM");
     }
 
+    /** Polls GET /api/projects/{id} until it reaches the status, at most 15 seconds. */
+    private JsonNode waitFor(String token, String id, String status) throws Exception {
+        long deadline = System.currentTimeMillis() + 15_000;
+        JsonNode p = null;
+        while (System.currentTimeMillis() < deadline) {
+            HttpRequest r = HttpRequest.newBuilder(uri("/api/projects/" + id))
+                    .header("Authorization", "Bearer " + token).GET().build();
+            p = json.readTree(http.send(r, HttpResponse.BodyHandlers.ofString()).body());
+            if (status.equals(p.path("status").asString())) {
+                return p;
+            }
+            Thread.sleep(100);
+        }
+        throw new AssertionError("Project " + id + " never reached " + status + ", last: " + p);
+    }
+
+    @Test
+    void anInfographicScriptHasNoImageScenes() throws Exception {
+        String token = login();
+        String id = create(token, """
+                {"idea": "The life of an online order", "language": "EN", "durationSeconds": 30,
+                 "options": {"purpose": "BUSINESS", "theme": "LIGHT"}}
+                """).path("id").asString();
+
+        // 9.3: INFOGRAPHIC is ready, so the (mock) script is written for it: graphics only
+        JsonNode review = waitFor(token, id, "SCRIPT_REVIEW");
+        JsonNode scenes = review.path("script").path("scenes");
+        assertThat(scenes.size()).isGreaterThanOrEqualTo(3);
+        for (JsonNode scene : scenes) {
+            assertThat(scene.path("visual").path("type").asString()).isNotEqualTo("image");
+            assertThat(scene.path("imagePrompt").asString()).isEmpty();
+        }
+    }
+
     @Test
     void badChoicesAreRejected() throws Exception {
         String token = login();

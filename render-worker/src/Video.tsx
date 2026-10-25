@@ -3,12 +3,15 @@ import { AbsoluteFill, Audio, Sequence, Series, interpolate, useVideoConfig } fr
 import { Scene } from './Scene';
 import { src } from './media';
 import { RenderSpec, fpsOf, sceneFrames } from './spec';
+import { applyTheme, theme } from './theme';
 
 /** The whole video: the scenes one after another, music underneath. */
 export const Video: React.FC<RenderSpec> = (spec) => {
   const fps = fpsOf(spec);
+  // before any scene is drawn: every graphic reads its colours from `theme` (9.3)
+  applyTheme(spec.theme);
   return (
-    <AbsoluteFill style={{ backgroundColor: '#000' }}>
+    <AbsoluteFill style={{ backgroundColor: theme.bg }}>
       <Series>
         {spec.scenes.map((scene, i) => (
           <Series.Sequence key={i} durationInFrames={sceneFrames(scene, fps)} name={`Scene ${i + 1}`}>

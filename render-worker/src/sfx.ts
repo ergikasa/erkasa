@@ -100,7 +100,7 @@ function wordTime(onWord: string | undefined, words: Word[]): number {
   return hit ? hit.startSeconds : 0.1;
 }
 
-/** When the items of a flow / list / compare appear: the same numbers Graphics.tsx uses. */
+/** When the items of a flow / list / compare / infographic appear: the same numbers Graphics.tsx uses. */
 function itemTimes(scene: SpecScene): number[] {
   const v = normalizeVisual(scene.visual);
   const words = scene.words ?? [];
@@ -109,6 +109,10 @@ function itemTimes(scene: SpecScene): number[] {
     case 'flow':
       return cueTimes(v.steps, words, a);
     case 'list':
+    case 'bars':
+    case 'timeline':
+    case 'cycle':
+    case 'iconGrid':
       return cueTimes(v.items, words, a);
     case 'compare': {
       const left = cueTimes([v.leftTitle, ...v.left], words, a * 0.5);

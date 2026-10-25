@@ -1,7 +1,8 @@
 import React from 'react';
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig, Easing } from 'remotion';
 import { AspectRatio, Visual, Word, cueTimes } from './spec';
-import { theme } from './theme';
+import { panelStyle, theme } from './theme';
+import { Infographic, isInfographic } from './Infographics';
 
 type Props = { visual: Exclude<Visual, { type: 'image' }>; words: Word[]; audioSeconds: number; aspectRatio: AspectRatio };
 
@@ -48,7 +49,8 @@ const Body: React.FC<Props> = ({ visual, words, audioSeconds, aspectRatio }) => 
     case 'cta':
       return <Cta text={visual.text} handle={visual.handle} aspectRatio={aspectRatio} />;
     default:
-      return null;
+      // bars, timeline, cycle, iconGrid (9.3)
+      return isInfographic(visual) ? <Infographic visual={visual} words={words} audioSeconds={audioSeconds} aspectRatio={aspectRatio} /> : null;
   }
 };
 
@@ -60,12 +62,6 @@ function useAppear(atSeconds: number, damping = 14) {
   return spring({ frame: frame - Math.round(atSeconds * fps), fps, config: { damping, stiffness: 140 } });
 }
 
-const panelStyle: React.CSSProperties = {
-  background: theme.panel,
-  border: `2px solid ${theme.panelBorder}`,
-  borderRadius: 28,
-  boxShadow: '0 20px 60px rgba(0,0,0,0.45)',
-};
 
 /**
  * Slowly moving glows + grid, so graphic scenes never look like a static slide.
@@ -93,13 +89,13 @@ const Backdrop: React.FC = () => {
     <AbsoluteFill style={{ background: `linear-gradient(160deg, ${theme.bg} 0%, ${theme.bg2} 100%)`, overflow: 'hidden' }}>
       <div
         style={{
-          ...glow('rgba(34,211,238,0.18)', big),
+          ...glow(theme.glow1, big),
           transform: `translate(${width * (0.5 + 0.3 * Math.cos(t))}px, ${height * (0.3 + 0.2 * Math.sin(t))}px)`,
         }}
       />
       <div
         style={{
-          ...glow('rgba(167,139,250,0.18)', big * 1.1),
+          ...glow(theme.glow2, big * 1.1),
           transform: `translate(${width * (0.5 - 0.3 * Math.cos(t))}px, ${height * (0.75 - 0.15 * Math.sin(t))}px)`,
         }}
       />
@@ -111,7 +107,7 @@ const Backdrop: React.FC = () => {
           width,
           height: height + 60,
           backgroundImage:
-            'linear-gradient(rgba(148,163,184,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.07) 1px, transparent 1px)',
+            `linear-gradient(${theme.grid} 1px, transparent 1px), linear-gradient(90deg, ${theme.grid} 1px, transparent 1px)`,
           backgroundSize: '60px 60px',
           transform: `translateY(${(frame * 0.5) % 60}px)`,
           willChange: 'transform',
@@ -194,9 +190,9 @@ const Flow: React.FC<{ steps: string[]; cues: number[]; aspectRatio: AspectRatio
           <React.Fragment key={i}>
             <div
               style={{
-                ...panelStyle,
+                ...panelStyle(),
                 borderColor: active ? color : theme.panelBorder,
-                boxShadow: active ? `0 0 50px ${color}66, 0 20px 60px rgba(0,0,0,0.45)` : panelStyle.boxShadow,
+                boxShadow: active ? `0 0 50px ${color}66, ${theme.shadow}` : theme.shadow,
                 minWidth: vertical ? 640 : boxSize,
                 maxWidth: vertical ? 860 : boxSize + 60,
                 minHeight: vertical ? boxSize * 0.62 : boxSize * 0.8,
@@ -217,7 +213,7 @@ const Flow: React.FC<{ steps: string[]; cues: number[]; aspectRatio: AspectRatio
                   flex: '0 0 64px',
                   borderRadius: 32,
                   background: color,
-                  color: theme.bg,
+                  color: theme.onAccent,
                   fontWeight: 900,
                   fontSize: 34,
                   display: 'flex',
@@ -299,7 +295,7 @@ const List: React.FC<{ items: string[]; cues: number[]; aspectRatio: AspectRatio
           <div
             key={i}
             style={{
-              ...panelStyle,
+              ...panelStyle(),
               display: 'flex',
               alignItems: 'center',
               gap: 28,
@@ -412,7 +408,7 @@ const Compare: React.FC<{
   const column = (title: string, rows: string[], cues: number[], color: string, mark: string) => {
     const head = spring({ frame: frame - Math.round(cues[0] * fps), fps, config: { damping: 14 } });
     return (
-      <div style={{ ...panelStyle, flex: 1, padding: portrait ? 30 : 34, borderTop: `10px solid ${color}`, opacity: head, transform: `translateY(${(1 - head) * 40}px)` }}>
+      <div style={{ ...panelStyle(), flex: 1, padding: portrait ? 30 : 34, borderTop: `10px solid ${color}`, opacity: head, transform: `translateY(${(1 - head) * 40}px)` }}>
         <div style={{ color, fontWeight: 900, fontSize: portrait ? 50 : 52, marginBottom: 22 }}>{title}</div>
         {rows.map((row, i) => {
           const a = spring({ frame: frame - Math.round(cues[i + 1] * fps), fps, config: { damping: 15 } });
@@ -486,7 +482,7 @@ const Code: React.FC<{ code: string; language?: string; audioSeconds: number; as
   let left = typed;
   const cursorOn = Math.floor(frame / 15) % 2 === 0;
   return (
-    <div style={{ ...panelStyle, width: '100%', padding: 0, overflow: 'hidden', opacity: win, transform: `scale(${0.92 + 0.08 * win})` }}>
+    <div style={{ ...panelStyle(), width: '100%', padding: 0, overflow: 'hidden', opacity: win, transform: `scale(${0.92 + 0.08 * win})` }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '18px 26px', background: 'rgba(255,255,255,0.05)' }}>
         {['#F87171', '#FBBF24', '#34D399'].map((c) => (
           <div key={c} style={{ width: 20, height: 20, borderRadius: 10, background: c }} />
@@ -532,7 +528,7 @@ const Cta: React.FC<{ text: string; handle?: string; aspectRatio: AspectRatio }>
             padding: '24px 56px',
             borderRadius: 999,
             background: `linear-gradient(90deg, ${theme.accent}, ${theme.accent2})`,
-            color: theme.bg,
+            color: theme.onAccent,
             fontSize: portrait ? 54 : 48,
             fontWeight: 900,
             transform: `scale(${btn * pulse})`,

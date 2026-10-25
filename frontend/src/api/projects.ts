@@ -57,8 +57,16 @@ export const PURPOSE_DEFAULTS: Record<Purpose, { template: Template; tone: Tone;
   BUSINESS: { template: 'INFOGRAPHIC', tone: 'PROFESSIONAL', durationSeconds: 60, aspectRatio: 'LANDSCAPE' },
 };
 
-/** The CLASSIC scene types (the editor can change these). 9.3/9.4 add the template scenes. */
-export const VISUAL_TYPES = ['image', 'title', 'flow', 'list', 'stat', 'compare', 'code', 'cta'] as const;
+/** Every scene type (which template uses which: backend SceneCatalog). */
+export const VISUAL_TYPES = [
+  'image', 'title', 'flow', 'list', 'stat', 'compare', 'code', 'cta',
+  // INFOGRAPHIC (9.3)
+  'bars', 'timeline', 'cycle', 'iconGrid',
+  // ANIMATED_2D (9.4)
+  'character', 'iconLink', 'metaphor', 'beforeAfter', 'zoom',
+] as const;
+/** Types whose items go in pairs with values / labels / icons: an item is never dropped, only trimmed. */
+export const PAIRED_TYPES: readonly VisualType[] = ['bars', 'timeline', 'iconGrid', 'iconLink'];
 export type VisualType = (typeof VISUAL_TYPES)[number];
 
 /** The flat visual object (backend Visual): every field present, the unused ones empty. */
@@ -80,8 +88,11 @@ export type Visual = {
   text: string;
   handle: string;
   /* 9.2: fields of the INFOGRAPHIC and ANIMATED_2D scenes (missing in older scripts) */
+  /** bars: one number per item */
   values?: number[];
+  /** timeline: one date / step per item */
   labels?: string[];
+  /** Lucide icon names: iconGrid (one per item) ... */
   icons?: string[];
   pose?: string;
 };

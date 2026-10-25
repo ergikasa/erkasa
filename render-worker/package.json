@@ -10,6 +10,7 @@
     "sample": "tsx src/make-sample.ts",
     "typecheck": "tsc --noEmit",
     "demo": "tsx src/make-demo.ts",
+    "demo:info": "tsx src/make-info-demo.ts",
     "worker": "tsx src/worker.ts",
     "bench": "tsx src/bench.ts",
     "make-sfx": "tsx src/make-sfx.ts"
@@ -21,6 +22,7 @@
     "@remotion/cli": "4.0.537",
     "@remotion/renderer": "4.0.537",
     "amqplib": "0.10.9",
+    "lucide-react": "1.61.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "remotion": "4.0.537"

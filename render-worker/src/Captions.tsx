@@ -1,6 +1,7 @@
 import React from 'react';
 import { AbsoluteFill, spring, useCurrentFrame, useVideoConfig } from 'remotion';
 import { AspectRatio, Word } from './spec';
+import { theme } from './theme';
 
 /** At most this many words on screen at once; a chunk also ends after . ! ? , : ; */
 const WORDS_PER_CHUNK = 3;
@@ -31,7 +32,11 @@ export function chunk(words: Word[]): Chunk[] {
  * Word-by-word subtitles: the current line stays on screen, the word being spoken right now
  * is yellow and pops a little. Works for Latin and Cyrillic (system fonts).
  */
-export const Captions: React.FC<{ words: Word[]; aspectRatio: AspectRatio }> = ({ words, aspectRatio }) => {
+export const Captions: React.FC<{ words: Word[]; aspectRatio: AspectRatio; onGraphic?: boolean }> = ({ words, aspectRatio, onGraphic }) => {
+  // over graphics the colours follow the theme (dark text on LIGHT); over photos always white
+  const colors = onGraphic
+    ? { text: theme.captionText, stroke: theme.captionStroke, active: theme.captionActive }
+    : { text: '#FFFFFF', stroke: '#000', active: '#FFE14D' };
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const t = frame / fps;
@@ -81,10 +86,10 @@ export const Captions: React.FC<{ words: Word[]; aspectRatio: AspectRatio }> = (
               style={{
                 display: 'inline-block',
                 margin: '0 0.2em',
-                color: speaking ? '#FFE14D' : '#FFFFFF',
-                WebkitTextStroke: '3px #000',
+                color: speaking ? colors.active : colors.text,
+                WebkitTextStroke: `3px ${colors.stroke}`,
                 paintOrder: 'stroke fill',
-                textShadow: '0 4px 14px rgba(0,0,0,0.65)',
+                textShadow: onGraphic && colors.stroke !== '#000000' ? 'none' : '0 4px 14px rgba(0,0,0,0.65)',
                 transform: speaking ? 'scale(1.07)' : 'scale(1)',
               }}
             >

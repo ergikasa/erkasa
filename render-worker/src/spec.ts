@@ -27,7 +27,12 @@ export type Visual =
   | { type: 'stat'; value: number; prefix?: string; suffix?: string; label: string }
   | { type: 'compare'; leftTitle: string; rightTitle: string; left: string[]; right: string[] }
   | { type: 'code'; language?: string; code: string }
-  | { type: 'cta'; text: string; handle?: string };
+  | { type: 'cta'; text: string; handle?: string }
+  // INFOGRAPHIC template (9.3)
+  | { type: 'bars'; title?: string; items: string[]; values: number[]; prefix?: string; suffix?: string }
+  | { type: 'timeline'; items: string[]; labels: string[] }
+  | { type: 'cycle'; title?: string; items: string[] }
+  | { type: 'iconGrid'; items: string[]; icons: string[] };
 
 /** A sound effect the LLM chose: plays on that word of the narration ("" = scene start). */
 export type SoundCue = { sound: string; onWord?: string };
@@ -66,19 +71,23 @@ export type RenderSpec = {
   effects?: Effect[];
   /** word-by-word subtitles, default true */
   captions?: boolean;
+  /** colour theme: DARK (default), LIGHT, VIBRANT (9.3, see theme.ts) */
+  theme?: string;
   scenes: SpecScene[];
 };
 
 /**
  * The backend writes one flat object for every visual type (see backend Visual.java):
  * { type, title, subtitle, items, value, prefix, suffix, label, leftTitle, rightTitle,
- *   left, right, code, language, text, handle } with unused fields empty.
+ *   left, right, code, language, text, handle, values, labels, icons, pose } with unused fields empty.
  * This turns it (or an already typed Visual) into the typed form the templates use.
  */
 export function normalizeVisual(raw: unknown): Visual {
   const v = (raw ?? {}) as Record<string, unknown>;
   const str = (k: string) => (typeof v[k] === 'string' ? (v[k] as string) : '');
   const list = (k: string) => (Array.isArray(v[k]) ? (v[k] as unknown[]).map(String).filter((x) => x.trim()) : []);
+  // lists that go in pairs (items + values / labels / icons): keep the positions, only trim
+  const rawList = (k: string) => (Array.isArray(v[k]) ? (v[k] as unknown[]).map((x) => String(x ?? '').trim()) : []);
   switch (v.type) {
     case 'title':
       return { type: 'title', title: str('title'), subtitle: str('subtitle') || undefined };
@@ -94,6 +103,30 @@ export function normalizeVisual(raw: unknown): Visual {
       return { type: 'code', code: str('code'), language: str('language') || undefined };
     case 'cta':
       return { type: 'cta', text: str('text'), handle: str('handle') || undefined };
+    case 'bars': {
+      const items = rawList('items');
+      const values = Array.isArray(v.values) ? (v.values as unknown[]).map((x) => Math.max(0, Number(x) || 0)) : [];
+      return {
+        type: 'bars',
+        title: str('title') || undefined,
+        items,
+        values: items.map((_, i) => values[i] ?? 0),
+        prefix: str('prefix') || undefined,
+        suffix: str('suffix') || undefined,
+      };
+    }
+    case 'timeline': {
+      const items = rawList('items');
+      const labels = rawList('labels');
+      return { type: 'timeline', items, labels: items.map((_, i) => labels[i] ?? '') };
+    }
+    case 'cycle':
+      return { type: 'cycle', title: str('title') || undefined, items: list('items') };
+    case 'iconGrid': {
+      const items = rawList('items');
+      const icons = rawList('icons');
+      return { type: 'iconGrid', items, icons: items.map((_, i) => icons[i] ?? '') };
+    }
     default:
       return { type: 'image' };
   }

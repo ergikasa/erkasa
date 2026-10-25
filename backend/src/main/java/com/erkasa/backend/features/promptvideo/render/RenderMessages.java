@@ -20,8 +20,9 @@ public final class RenderMessages {
     }
 
     /** The render spec (see RenderSpec in spec.ts). image / audio are presigned http(s) links. */
+    /** @param theme colour theme of the graphics: DARK, LIGHT, VIBRANT (9.3) */
     public record Spec(String aspectRatio, int fps, String title, String music, double musicVolume,
-                       boolean captions, List<Scene> scenes) {
+                       boolean captions, String theme, List<Scene> scenes) {
     }
 
     public record Scene(String image, String audio, double audioSeconds, String onScreenText,

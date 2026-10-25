@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Scene, Visual, VideoScript, countWords, spokenSeconds, visualType } from '../api/projects';
+import { PAIRED_TYPES, Scene, Visual, VideoScript, VisualType, countWords, spokenSeconds, visualType } from '../api/projects';
 import { TextArea, TextField } from './ui';
 
 /**
@@ -98,6 +98,25 @@ const SceneCard: React.FC<{ index: number; scene: Scene; onChange: (s: Scene) =>
   );
 };
 
+/** A copy of the list with one position changed (missing positions are filled with the value's empty form). */
+function setAt<T>(list: T[], i: number, value: T): T[] {
+  const copy = [...list];
+  copy[i] = value;
+  return copy;
+}
+
+/** One row per item with two fields side by side (label + number, date + event, icon + text). */
+const Pairs: React.FC<{ rows: string[]; left: (i: number) => React.ReactNode; right: (i: number) => React.ReactNode }> = ({ rows, left, right }) => (
+  <div className="space-y-3">
+    {rows.map((_, i) => (
+      <div key={i} className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-3">
+        {left(i)}
+        {right(i)}
+      </div>
+    ))}
+  </div>
+);
+
 /** "one per line" lists: keep the raw lines while typing, clean them when saving. */
 const Lines: React.FC<{ label: string; value: string[]; onChange: (v: string[]) => void }> = ({ label, value, onChange }) => (
   <TextArea label={label} rows={3} value={value.join('\n')} onChange={(e) => onChange(e.target.value.split('\n'))} />
@@ -162,6 +181,68 @@ const VisualFields: React.FC<{ visual: Visual; onChange: (patch: Partial<Visual>
           <TextField label={f('handle')} value={v.handle} onChange={(e) => onChange({ handle: e.target.value })} />
         </div>
       );
+    // ---- INFOGRAPHIC (9.3): the number of rows stays as the AI wrote it ----
+    case 'bars':
+      return (
+        <div className="space-y-3">
+          <TextField label={f('title')} value={v.title} onChange={(e) => onChange({ title: e.target.value })} />
+          <Pairs
+            rows={v.items}
+            left={(i) => (
+              <TextField label={f('barLabel')} value={v.items[i]} onChange={(e) => onChange({ items: setAt(v.items, i, e.target.value) })} />
+            )}
+            right={(i) => (
+              <TextField
+                label={f('value')}
+                inputMode="decimal"
+                value={v.values?.[i] == null ? '' : String(v.values[i])}
+                onChange={(e) => {
+                  const n = Number(e.target.value.replace(',', '.'));
+                  onChange({ values: setAt(v.values ?? [], i, Number.isNaN(n) ? 0 : n) });
+                }}
+              />
+            )}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label={f('prefix')} value={v.prefix} onChange={(e) => onChange({ prefix: e.target.value })} />
+            <TextField label={f('suffix')} value={v.suffix} onChange={(e) => onChange({ suffix: e.target.value })} />
+          </div>
+        </div>
+      );
+    case 'timeline':
+      return (
+        <Pairs
+          rows={v.items}
+          left={(i) => (
+            <TextField label={f('date')} value={v.labels?.[i] ?? ''} onChange={(e) => onChange({ labels: setAt(v.labels ?? [], i, e.target.value) })} />
+          )}
+          right={(i) => (
+            <TextField label={f('event')} value={v.items[i]} onChange={(e) => onChange({ items: setAt(v.items, i, e.target.value) })} />
+          )}
+        />
+      );
+    case 'cycle':
+      return (
+        <div className="space-y-3">
+          <TextField label={f('center')} value={v.title} onChange={(e) => onChange({ title: e.target.value })} />
+          <Lines label={f('stages')} value={v.items} onChange={(items) => onChange({ items })} />
+        </div>
+      );
+    case 'iconGrid':
+      return (
+        <Pairs
+          rows={v.items}
+          left={(i) => (
+            <div>
+              <p className="mb-1.5 text-sm font-medium text-muted">{f('icon')}</p>
+              <p className="flex min-h-12 items-center rounded-xl border border-line bg-surface-2 px-3 font-mono text-sm text-muted">{v.icons?.[i] ?? '—'}</p>
+            </div>
+          )}
+          right={(i) => (
+            <TextField label={f('point')} value={v.items[i]} onChange={(e) => onChange({ items: setAt(v.items, i, e.target.value) })} />
+          )}
+        />
+      );
     default:
       return null;
   }
@@ -178,7 +259,16 @@ export function cleanScript(script: VideoScript): VideoScript {
       narration: s.narration.trim(),
       onScreenText: s.onScreenText.trim(),
       imagePrompt: s.imagePrompt.trim(),
-      visual: s.visual ? { ...s.visual, items: lines(s.visual.items), left: lines(s.visual.left), right: lines(s.visual.right) } : s.visual,
+      visual: s.visual
+        ? {
+            ...s.visual,
+            // paired lists keep every position, so items still match their values / labels / icons
+            items: PAIRED_TYPES.includes(s.visual.type as VisualType) ? (s.visual.items ?? []).map((x) => x.trim()) : lines(s.visual.items),
+            left: lines(s.visual.left),
+            right: lines(s.visual.right),
+            ...(s.visual.labels ? { labels: s.visual.labels.map((x) => x.trim()) } : {}),
+          }
+        : s.visual,
     })),
   };
 }
