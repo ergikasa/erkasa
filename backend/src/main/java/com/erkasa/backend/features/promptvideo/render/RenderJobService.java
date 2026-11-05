@@ -51,6 +51,9 @@ import tools.jackson.databind.ObjectMapper;
  * left over from an earlier dispatch can never finish (or fail) the project.
  * Every check runs with the project row locked (the same lock as cancel / retry).
  *
+ * Time limits (V2 task A4): watch() is called by RenderWatchdog for every running render; see there.
+ * cancelActive() closes the active render when the user cancels.
+ *
  * The MP4 lands at projects/{projectId}/{jobId}/{dispatchId}/video.mp4 (one folder per dispatch,
  * so two uploads never overwrite each other); the RENDER step's output_key points at it.
  */
@@ -76,6 +79,14 @@ public class RenderJobService {
     /** render deadline = max(renderTimeoutMin, renderTimeoutPerSecond x video seconds) */
     private final Duration renderTimeoutMin;
     private final Duration renderTimeoutPerSecond;
+    /** watchdog (V2 A4): no CLAIMED this long after the send -> RENDER_QUEUE_TIMEOUT */
+    private final Duration queueTimeout;
+    /** watchdog: fails at deadline + this; the worker already stops itself at 90 % */
+    private final Duration deadlineGrace;
+    /** watchdog: waits this long past an expired lease, so another worker's heartbeat can take it over first */
+    private final Duration leaseGrace;
+    /** watchdog: dispatches per job before a lost worker means FAILED (2 = one new send) */
+    private final int maxAttempts;
 
     public RenderJobService(ProjectRepository projects, JobRepository jobs, JobStepRepository steps,
                             RenderSpecBuilder specs, AssetStorage storage, Outbox outbox,
@@ -83,7 +94,15 @@ public class RenderJobService {
                             CreditService credits, Clock clock,
                             @Value("${erkasa.render.lease:2m}") Duration lease,
                             @Value("${erkasa.render.timeout-min:10m}") Duration renderTimeoutMin,
-                            @Value("${erkasa.render.timeout-per-video-second:6s}") Duration renderTimeoutPerSecond) {
+                            @Value("${erkasa.render.timeout-per-video-second:6s}") Duration renderTimeoutPerSecond,
+                            @Value("${erkasa.render.queue-timeout:30m}") Duration queueTimeout,
+                            @Value("${erkasa.render.deadline-grace:1m}") Duration deadlineGrace,
+                            @Value("${erkasa.render.lease-grace:30s}") Duration leaseGrace,
+                            @Value("${erkasa.render.max-attempts:2}") int maxAttempts) {
+        this.queueTimeout = queueTimeout;
+        this.deadlineGrace = deadlineGrace;
+        this.leaseGrace = leaseGrace;
+        this.maxAttempts = maxAttempts;
         this.clock = clock;
         this.lease = lease;
         this.renderTimeoutMin = renderTimeoutMin;
@@ -150,24 +169,148 @@ public class RenderJobService {
                 log.info("Render job {} not sent: project {} is {}", jobId, projectId, project.getStatus());
                 return null;
             }
-            VideoScript script = json.readValue(project.getScript(), VideoScript.class);
-            Job assets = jobs.findFirstByProjectIdAndKindOrderByCreatedAtDesc(project.getId(), JobKind.ASSETS).orElseThrow();
-            RenderMessages.Spec spec = specs.build(project, script, steps.findByJobIdOrderByTypeAscSceneIndexAsc(assets.getId()));
-
             job.moveTo(JobStatus.RUNNING);
             stepOf(jobId).moveTo(StepStatus.RUNNING);
-            UUID dispatchId = job.newDispatch(clock.instant());
-            String key = outputKey(project.getId(), jobId, dispatchId);
-            String uploadUrl = storage.presignPut(key, VIDEO_TYPE, RenderSpecBuilder.LINK_VALID);
-            RenderMessages.Request req = new RenderMessages.Request(jobId, project.getId(), dispatchId,
-                    job.getAttempt(), key, uploadUrl, spec);
-            outbox.enqueue(RenderQueues.REQUESTS, req);
-            return req;
+            return dispatch(project, job);
         });
         if (request != null) {
             log.info("Render job {} queued for the worker: dispatch {}, attempt {}, {} scenes", jobId,
                     request.dispatchId(), request.attempt(), request.spec().scenes().size());
         }
+    }
+
+    /**
+     * A new dispatch of a RUNNING job: fresh links, a new dispatch id, into the outbox. Used by send()
+     * and by the watchdog after a lost worker. The caller holds the project lock.
+     */
+    private RenderMessages.Request dispatch(Project project, Job job) {
+        VideoScript script = json.readValue(project.getScript(), VideoScript.class);
+        Job assets = jobs.findFirstByProjectIdAndKindOrderByCreatedAtDesc(project.getId(), JobKind.ASSETS).orElseThrow();
+        RenderMessages.Spec spec = specs.build(project, script, steps.findByJobIdOrderByTypeAscSceneIndexAsc(assets.getId()));
+
+        UUID dispatchId = job.newDispatch(clock.instant());
+        String key = outputKey(project.getId(), job.getId(), dispatchId);
+        String uploadUrl = storage.presignPut(key, VIDEO_TYPE, RenderSpecBuilder.LINK_VALID);
+        RenderMessages.Request req = new RenderMessages.Request(job.getId(), project.getId(), dispatchId,
+                job.getAttempt(), renderTimeout(project).toSeconds(), key, uploadUrl, spec);
+        outbox.enqueue(RenderQueues.REQUESTS, req);
+        return req;
+    }
+
+    /**
+     * Cancel (V2 A4): closes the project's active render job, so the watchdog leaves it alone and
+     * every late result of its worker is refused. The caller holds the project lock.
+     */
+    public void cancelActive(UUID projectId) {
+        jobs.findFirstByProjectIdAndKindOrderByCreatedAtDesc(projectId, JobKind.RENDER)
+                .filter(job -> job.getStatus().isActive())
+                .ifPresent(job -> {
+                    job.moveTo(JobStatus.CANCELLED);
+                    job.endDispatch();
+                    JobStep step = stepOf(job.getId());
+                    if (step.getStatus() == StepStatus.RUNNING) {
+                        step.moveTo(StepStatus.PENDING);
+                    }
+                    if (step.getStatus().canMoveTo(StepStatus.SKIPPED)) {
+                        step.moveTo(StepStatus.SKIPPED);
+                    }
+                    log.info("Render job {} of project {} cancelled", job.getId(), projectId);
+                });
+    }
+
+    /** What the watchdog did with one job. */
+    public enum WatchOutcome {
+        NOTHING, QUEUE_TIMEOUT, RESENT_AFTER_LOST_WORKER, WORKER_LOST, RENDER_TIMEOUT, ORPHAN_CLOSED
+    }
+
+    /**
+     * The watchdog's check of ONE running render job (V2 A4), with the project locked:
+     *
+     *   render timeout  claimed, and now > deadline + 1 min (even with heartbeats)  -> FAILED, no retry
+     *   lost worker     claimed, lease expired more than 30 s ago -> a new dispatch once, then FAILED
+     *   queue timeout   never claimed, 30 min after the send (no free worker)        -> FAILED, no retry
+     *   orphan          the project is not RENDERING any more (cancelled earlier)    -> job CANCELLED
+     *
+     * Every FAILED refunds the credits, under the project lock, so a cancel at the same moment
+     * cannot refund twice (refundVideo only gives back what is still charged).
+     */
+    public WatchOutcome watch(UUID jobId) {
+        Watched watched = tx.execute(status -> {
+            UUID projectId = jobs.findProjectIdById(jobId).orElse(null);
+            if (projectId == null) {
+                return null;
+            }
+            Project project = projects.lockById(projectId).orElseThrow();
+            Job job = jobs.findById(jobId).orElseThrow();
+            if (job.getKind() != JobKind.RENDER || job.getStatus() != JobStatus.RUNNING) {
+                return new Watched(projectId, WatchOutcome.NOTHING);
+            }
+            return new Watched(projectId, decide(project, job, clock.instant()));
+        });
+        if (watched == null) {
+            return WatchOutcome.NOTHING;
+        }
+        switch (watched.outcome()) {
+            case NOTHING -> {
+            }
+            case RESENT_AFTER_LOST_WORKER, ORPHAN_CLOSED -> events.changed(watched.projectId());
+            default -> events.renderFinished(watched.projectId());
+        }
+        return watched.outcome();
+    }
+
+    private record Watched(UUID projectId, WatchOutcome outcome) {
+    }
+
+    private WatchOutcome decide(Project project, Job job, Instant now) {
+        if (project.getStatus() != ProjectStatus.RENDERING) {
+            cancelActive(project.getId());
+            return WatchOutcome.ORPHAN_CLOSED;
+        }
+        if (job.getDeadlineAt() != null && now.isAfter(job.getDeadlineAt().plus(deadlineGrace))) {
+            failRender(project, job, "RENDER_TIMEOUT", "The render took longer than "
+                    + renderTimeout(project).toMinutes() + " minutes and was stopped. Try again.");
+            return WatchOutcome.RENDER_TIMEOUT;
+        }
+        if (job.getClaimedAt() == null) {
+            // never claimed: wait for a free worker, but not forever (older jobs have no dispatched_at)
+            Instant since = job.getDispatchedAt() != null ? job.getDispatchedAt() : job.getStartedAt();
+            if (since != null && now.isAfter(since.plus(queueTimeout))) {
+                failRender(project, job, "RENDER_QUEUE_TIMEOUT", "No render worker was free for "
+                        + queueTimeout.toMinutes() + " minutes. Try again in a moment.");
+                return WatchOutcome.QUEUE_TIMEOUT;
+            }
+            return WatchOutcome.NOTHING;
+        }
+        if (job.getLeaseUntil() != null && now.isAfter(job.getLeaseUntil().plus(leaseGrace))) {
+            if (job.getAttempt() < maxAttempts) {
+                RenderMessages.Request req = dispatch(project, job);
+                log.warn("Render job {}: worker {} stopped answering; sent again as dispatch {} (attempt {})",
+                        job.getId(), job.getLeaseOwner(), req.dispatchId(), req.attempt());
+                return WatchOutcome.RESENT_AFTER_LOST_WORKER;
+            }
+            failRender(project, job, "RENDER_WORKER_LOST", "The render worker stopped answering "
+                    + job.getAttempt() + " times. Try again.");
+            return WatchOutcome.WORKER_LOST;
+        }
+        return WatchOutcome.NOTHING;
+    }
+
+    /**
+     * Step + job + project FAILED and the credits back. The caller holds the project lock; a second
+     * call refunds nothing (refundVideo only returns what is still charged).
+     */
+    private void failRender(Project project, Job job, String code, String message) {
+        JobStep step = stepOf(job.getId());
+        if (step.getStatus() == StepStatus.RUNNING) {
+            step.fail(code, message, BigDecimal.ZERO);
+        }
+        job.fail(code, message);
+        if (project.getStatus() == ProjectStatus.RENDERING) {
+            project.fail(code, message);
+            credits.refundVideo(project.getUserId(), project.getId(), "Video failed: " + code);
+        }
+        log.warn("Render job {} of project {} failed: {} - {}", job.getId(), project.getId(), code, message);
     }
 
     /** A FAILED render goes back to the worker; the caller has already locked the project. */
@@ -297,13 +440,9 @@ public class RenderJobService {
             return false;
         }
         String message = r.error() == null ? "The render worker failed" : r.error();
-        step.fail("RENDER_FAILED", message, BigDecimal.ZERO);
-        job.fail("RENDER_FAILED", message);
-        if (project.getStatus() == ProjectStatus.RENDERING) {
-            project.fail("RENDER_FAILED", message);
-            credits.refundVideo(project.getUserId(), project.getId(), "Video failed: RENDER_FAILED");
-        }
-        log.warn("Render job {} failed on {}: {}", job.getId(), f.worker(), message);
+        // the worker stopped at its own time limit (V2 A4); any other code is not trusted
+        String code = "RENDER_TIMEOUT".equals(r.errorCode()) ? "RENDER_TIMEOUT" : "RENDER_FAILED";
+        failRender(project, job, code, message);
         return true;
     }
 

@@ -147,6 +147,12 @@ public class Job {
         return dispatchId;
     }
 
+    /** Cancelled (V2 A4): no dispatch is current any more, so every late result is refused. */
+    public void endDispatch() {
+        dispatchId = null;
+        leaseUntil = null;
+    }
+
     /**
      * May a message of {@code worker} for {@code dispatch} change this job? Yes only if the job is
      * RUNNING, the dispatch is the current one, and no OTHER worker holds an unexpired lease.

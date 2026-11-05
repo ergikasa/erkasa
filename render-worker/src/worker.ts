@@ -21,7 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import amqp from 'amqplib';
-import { Request, Result, handle } from './job';
+import { JobError, Request, Result, handle } from './job';
 import { Renderer } from './render';
 import { reporterFor, workerId } from './lease';
 
@@ -108,7 +108,8 @@ async function main() {
       const error = e instanceof Error ? e.message : String(e);
       log(`job ${req?.jobId ?? '?'} FAILED: ${error}`);
       if (req?.jobId) {
-        reporterFor(req, worker, report)({ type: 'FAILED', error: error.slice(0, 450) });
+        const errorCode = e instanceof JobError ? e.code : undefined;
+        reporterFor(req, worker, report)({ type: 'FAILED', error: error.slice(0, 450), errorCode });
       }
     } finally {
       channel.ack(msg);

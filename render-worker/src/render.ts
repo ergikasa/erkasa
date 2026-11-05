@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { bundle } from '@remotion/bundler';
-import { ChromiumOptions, HeadlessBrowser, OpenGlRenderer, openBrowser, renderMedia, selectComposition } from '@remotion/renderer';
+import { CancelSignal, ChromiumOptions, HeadlessBrowser, OpenGlRenderer, openBrowser, renderMedia, selectComposition } from '@remotion/renderer';
 import { RenderSpec, validateSpec } from './spec';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -12,6 +12,8 @@ export type RenderOptions = {
   /** folder that relative file names in the spec are read from */
   baseDir: string;
   onProgress?: (percent: number) => void;
+  /** stops the render (V2 A4: the worker's own time limit) */
+  cancelSignal?: CancelSignal;
 };
 
 export type RendererSettings = {
@@ -124,6 +126,7 @@ export class Renderer {
         // Good quality for social media at a sensible file size; veryfast encodes ~10 % quicker.
         crf: 20,
         x264Preset: 'veryfast',
+        cancelSignal: options.cancelSignal,
         onProgress: ({ progress }) => {
           const percent = Math.floor(progress * 100);
           if (percent !== lastReported && percent % 5 === 0) {

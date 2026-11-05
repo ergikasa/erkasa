@@ -373,6 +373,8 @@ public class ProjectService {
         return notify(tx.execute(status -> {
             Project project = lockOwned(userId, projectId);
             project.moveTo(ProjectStatus.CANCELLED);
+            // V2 A4: a render in progress is closed too; late results of its worker are refused
+            renders.cancelActive(projectId);
             credits.refundVideo(userId, projectId, "Video cancelled");
             log.info("Project {} cancelled", projectId);
             return project;

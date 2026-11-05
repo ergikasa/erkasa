@@ -30,6 +30,9 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
 
     long countByProjectIdAndKind(UUID projectId, JobKind kind);
 
+    /** E.g. every RUNNING render, for the render watchdog (V2 A4). */
+    List<Job> findByKindAndStatus(JobKind kind, JobStatus status);
+
     /** Jobs left QUEUED or RUNNING, e.g. after a restart (picked up again in 4.4). */
     List<Job> findByStatusInOrderByCreatedAtAsc(Collection<JobStatus> statuses);
 }

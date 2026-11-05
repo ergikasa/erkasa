@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { handle, type Request, type Result } from '../job';
+import { handle, JobError, type Request, type Result } from '../job';
 import { HEARTBEAT_MS, reporterFor, startHeartbeat, workerId } from '../lease';
 import type { Renderer } from '../render';
 
@@ -106,5 +106,37 @@ describe('handle', () => {
     const count = sent.length;
     vi.advanceTimersByTime(HEARTBEAT_MS * 3);
     expect(sent.length).toBe(count);
+  });
+
+  it('stops itself at 90 % of the time limit with RENDER_TIMEOUT (V2 A4)', async () => {
+    const sent: Result[] = [];
+    let cancelled = false;
+    const hanging = {
+      render: (_spec: unknown, _out: string, options: { cancelSignal?: (cb: () => void) => void }) =>
+        new Promise<void>((_resolve, reject) => {
+          options.cancelSignal?.(() => {
+            cancelled = true;
+            reject(new Error('renderMedia() got cancelled'));
+          });
+        }),
+    } as unknown as Renderer;
+
+    const t0 = Date.now();
+    const error = await handle(request({ timeoutSeconds: 0.5 }), (r) => sent.push(r), hanging, 'worker-a').catch((e) => e);
+    expect(error).toBeInstanceOf(JobError);
+    expect((error as JobError).code).toBe('RENDER_TIMEOUT');
+    expect(cancelled).toBe(true);
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(400); // 90 % of 500 ms
+    expect(Date.now() - t0).toBeLessThan(3000);
+    expect(sent.some((r) => r.type === 'SUCCEEDED')).toBe(false);
+  });
+
+  it('has no time limit when the backend sends none', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 200 })));
+    const fake = fakeRenderer();
+    const done = handle(request({ timeoutSeconds: undefined }), () => undefined, fake.renderer, 'worker-a');
+    await vi.waitFor(() => expect(fake.started()).toBe(true));
+    fake.release();
+    await expect(done).resolves.toBeUndefined();
   });
 });
