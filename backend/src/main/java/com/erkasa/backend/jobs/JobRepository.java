@@ -6,6 +6,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface JobRepository extends JpaRepository<Job, UUID> {
 
@@ -17,6 +19,14 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
 
     /** Is a job of this kind already queued or running? Used to refuse double starts. */
     boolean existsByProjectIdAndKindAndStatusIn(UUID projectId, JobKind kind, Collection<JobStatus> statuses);
+
+    /**
+     * Only the project id, WITHOUT loading the job into the persistence context. Callers lock the
+     * project first and read the job afterwards; loading the job before the lock would give them a
+     * cached copy from before the lock, i.e. possibly stale state (V2 A3).
+     */
+    @Query("select j.projectId from Job j where j.id = :id")
+    Optional<UUID> findProjectIdById(@Param("id") UUID id);
 
     long countByProjectIdAndKind(UUID projectId, JobKind kind);
 

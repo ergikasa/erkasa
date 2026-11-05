@@ -134,6 +134,12 @@ class RenderJobTests extends AbstractIntegrationTest {
         throw new AssertionError("No render request for project " + projectId);
     }
 
+    /** A worker message for this request: jobId + dispatchId + workerId (V2 A3), then {@code rest}. */
+    private static String result(JsonNode req, String rest) {
+        return "{\"jobId\":\"" + req.path("jobId").asString() + "\",\"dispatchId\":\""
+                + req.path("dispatchId").asString() + "\",\"workerId\":\"test-worker\"," + rest + "}";
+    }
+
     private void reply(String body) {
         rabbit.send("", RenderQueues.RESULTS, MessageBuilder.withBody(body.getBytes(StandardCharsets.UTF_8))
                 .setContentType("application/json").build());
@@ -170,7 +176,12 @@ class RenderJobTests extends AbstractIntegrationTest {
         assertThat(first.path("sfx").get(0).path("sound").asString()).isEqualTo("ding");
         assertThat(first.path("sfx").get(0).path("onWord").asString()).isEqualTo("mock");
         assertThat(spec.path("scenes").get(1).path("sfx").size()).isZero();
-        assertThat(req.path("outputKey").asString()).isEqualTo("projects/" + id + "/" + jobId + "/video.mp4");
+        // V2 A3: a new dispatch per send, and one folder per dispatch
+        String dispatchId = req.path("dispatchId").asString();
+        assertThat(dispatchId).isNotBlank();
+        assertThat(req.path("attempt").asInt()).isEqualTo(1);
+        assertThat(req.path("outputKey").asString())
+                .isEqualTo("projects/" + id + "/" + jobId + "/" + dispatchId + "/video.mp4");
 
         // V2 A1: the request went through the outbox, and RabbitMQ confirmed it. The worker can see
         // the message a moment before the relay commits sent_at, so wait briefly.
@@ -197,8 +208,9 @@ class RenderJobTests extends AbstractIntegrationTest {
                 .PUT(HttpRequest.BodyPublishers.ofByteArray(fakeMp4)).build(), HttpResponse.BodyHandlers.ofString());
         assertThat(put.statusCode()).as(put.body()).isEqualTo(200);
 
-        reply("{\"jobId\":\"" + jobId + "\",\"type\":\"PROGRESS\",\"percent\":50}");
-        reply("{\"jobId\":\"" + jobId + "\",\"type\":\"SUCCEEDED\",\"percent\":100,\"durationSeconds\":31.5,\"bytes\":14,\"renderSeconds\":42.0}");
+        reply(result(req, "\"type\":\"CLAIMED\""));
+        reply(result(req, "\"type\":\"PROGRESS\",\"percent\":50"));
+        reply(result(req, "\"type\":\"SUCCEEDED\",\"percent\":100,\"durationSeconds\":31.5,\"bytes\":14,\"renderSeconds\":42.0"));
         // --- end of the worker's side ---
 
         JsonNode done = waitFor(token, id, "DONE");
@@ -217,9 +229,10 @@ class RenderJobTests extends AbstractIntegrationTest {
         String token = login();
         String id = readyProject(token, "render fails once");
         call("POST", "/api/projects/" + id + "/render", null, token);
-        String jobId = takeRequest(id).path("jobId").asString();
+        JsonNode first = takeRequest(id);
+        String jobId = first.path("jobId").asString();
 
-        reply("{\"jobId\":\"" + jobId + "\",\"type\":\"FAILED\",\"error\":\"Chrome crashed\"}");
+        reply(result(first, "\"type\":\"FAILED\",\"error\":\"Chrome crashed\""));
         JsonNode failed = waitFor(token, id, "FAILED");
         assertThat(failed.path("errorCode").asString()).isEqualTo("RENDER_FAILED");
         assertThat(failed.path("errorMessage").asString()).contains("Chrome crashed");
@@ -228,8 +241,12 @@ class RenderJobTests extends AbstractIntegrationTest {
         HttpResponse<byte[]> retry = call("POST", "/api/projects/" + id + "/retry", null, token);
         assertThat(retry.statusCode()).isEqualTo(202);
         assertThat(read(retry).path("status").asString()).isEqualTo("RENDERING");
-        // the same job is sent to the worker again; no new job is created
-        assertThat(takeRequest(id).path("jobId").asString()).isEqualTo(jobId);
+        // the same job is sent to the worker again; no new job is created, but a NEW dispatch (V2 A3)
+        JsonNode again = takeRequest(id);
+        assertThat(again.path("jobId").asString()).isEqualTo(jobId);
+        assertThat(again.path("dispatchId").asString()).isNotEqualTo(first.path("dispatchId").asString());
+        assertThat(again.path("attempt").asInt()).isEqualTo(2);
+        assertThat(again.path("outputKey").asString()).contains(again.path("dispatchId").asString());
         assertThat(read(call("GET", "/api/projects/" + id, null, token)).path("jobs").size()).isEqualTo(3);
     }
 
@@ -264,8 +281,8 @@ class RenderJobTests extends AbstractIntegrationTest {
         String token = login();
         String id = readyProject(token, "after bad messages");
         call("POST", "/api/projects/" + id + "/render", null, token);
-        String jobId = takeRequest(id).path("jobId").asString();
-        reply("{\"jobId\":\"" + jobId + "\",\"type\":\"FAILED\",\"error\":\"x\"}");
+        JsonNode req = takeRequest(id);
+        reply(result(req, "\"type\":\"FAILED\",\"error\":\"x\""));
         waitFor(token, id, "FAILED");
     }
 
@@ -301,7 +318,7 @@ class RenderJobTests extends AbstractIntegrationTest {
         assertThat(jdbc.queryForObject("select count(*) from outbox_messages where payload ->> 'jobId' = ?",
                 Integer.class, jobId.toString())).isEqualTo(1);
 
-        reply("{\"jobId\":\"" + jobId + "\",\"type\":\"SUCCEEDED\",\"percent\":100,\"durationSeconds\":30.0,\"bytes\":10,\"renderSeconds\":60.0}");
+        reply(result(req, "\"type\":\"SUCCEEDED\",\"percent\":100,\"durationSeconds\":30.0,\"bytes\":10,\"renderSeconds\":60.0"));
         waitFor(token, id, "DONE");
     }
 }

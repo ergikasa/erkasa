@@ -1,12 +1,16 @@
 package com.erkasa.backend.features.promptvideo.render;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -37,10 +41,18 @@ import tools.jackson.databind.ObjectMapper;
  *
  *   start()   ASSETS_READY -> RENDERING: a RENDER job with one RENDER step, sent to the worker
  *             through the outbox (V2 task A1)
- *   onResult  PROGRESS: live % for the UI;  SUCCEEDED: step + job done, project DONE;
+ *   onResult  CLAIMED: the worker takes the lease;  PROGRESS: live % for the UI, and the heartbeat
+ *             that keeps the lease;  SUCCEEDED: step + job done, project DONE;
  *             FAILED: step + job + project FAILED (POST /retry sends it again)
  *
- * The MP4 lands at projects/{projectId}/{jobId}/video.mp4; the RENDER step's output_key points at it.
+ * Lease and fencing (V2 task A3): every send is a new dispatch (Job.newDispatch). A worker's
+ * message changes the job only if Job.fence() accepts it: job RUNNING, current dispatch, and no
+ * other worker holding an unexpired lease. Everything else is logged and ignored, so a worker
+ * left over from an earlier dispatch can never finish (or fail) the project.
+ * Every check runs with the project row locked (the same lock as cancel / retry).
+ *
+ * The MP4 lands at projects/{projectId}/{jobId}/{dispatchId}/video.mp4 (one folder per dispatch,
+ * so two uploads never overwrite each other); the RENDER step's output_key points at it.
  */
 @Service
 public class RenderJobService {
@@ -58,11 +70,24 @@ public class RenderJobService {
     private final CreditService credits;
     private final TransactionTemplate tx;
     private final ObjectMapper json;
+    private final Clock clock;
+    /** how long a CLAIMED or a heartbeat keeps the lease (the worker beats every 20 s) */
+    private final Duration lease;
+    /** render deadline = max(renderTimeoutMin, renderTimeoutPerSecond x video seconds) */
+    private final Duration renderTimeoutMin;
+    private final Duration renderTimeoutPerSecond;
 
     public RenderJobService(ProjectRepository projects, JobRepository jobs, JobStepRepository steps,
                             RenderSpecBuilder specs, AssetStorage storage, Outbox outbox,
                             ProjectEvents events, TransactionTemplate tx, ObjectMapper json,
-                            CreditService credits) {
+                            CreditService credits, Clock clock,
+                            @Value("${erkasa.render.lease:2m}") Duration lease,
+                            @Value("${erkasa.render.timeout-min:10m}") Duration renderTimeoutMin,
+                            @Value("${erkasa.render.timeout-per-video-second:6s}") Duration renderTimeoutPerSecond) {
+        this.clock = clock;
+        this.lease = lease;
+        this.renderTimeoutMin = renderTimeoutMin;
+        this.renderTimeoutPerSecond = renderTimeoutPerSecond;
         this.credits = credits;
         this.projects = projects;
         this.jobs = jobs;
@@ -109,7 +134,7 @@ public class RenderJobService {
         RenderMessages.Request request = tx.execute(status -> {
             // Project lock first (same order as cancel / fail), then read the job: two callers at
             // once (a retry and startup recovery, say) are serialized, and the second sees RUNNING.
-            UUID projectId = jobs.findById(jobId).orElseThrow().getProjectId();
+            UUID projectId = jobs.findProjectIdById(jobId).orElseThrow();
             Project project = projects.lockById(projectId).orElseThrow();
             Job job = jobs.findById(jobId).orElseThrow();
             if (job.getStatus() != JobStatus.QUEUED) {
@@ -129,17 +154,19 @@ public class RenderJobService {
             Job assets = jobs.findFirstByProjectIdAndKindOrderByCreatedAtDesc(project.getId(), JobKind.ASSETS).orElseThrow();
             RenderMessages.Spec spec = specs.build(project, script, steps.findByJobIdOrderByTypeAscSceneIndexAsc(assets.getId()));
 
-            String key = "projects/" + project.getId() + "/" + jobId + "/video.mp4";
-            String uploadUrl = storage.presignPut(key, VIDEO_TYPE, RenderSpecBuilder.LINK_VALID);
-
             job.moveTo(JobStatus.RUNNING);
             stepOf(jobId).moveTo(StepStatus.RUNNING);
-            RenderMessages.Request req = new RenderMessages.Request(jobId, project.getId(), key, uploadUrl, spec);
+            UUID dispatchId = job.newDispatch(clock.instant());
+            String key = outputKey(project.getId(), jobId, dispatchId);
+            String uploadUrl = storage.presignPut(key, VIDEO_TYPE, RenderSpecBuilder.LINK_VALID);
+            RenderMessages.Request req = new RenderMessages.Request(jobId, project.getId(), dispatchId,
+                    job.getAttempt(), key, uploadUrl, spec);
             outbox.enqueue(RenderQueues.REQUESTS, req);
             return req;
         });
         if (request != null) {
-            log.info("Render job {} queued for the worker ({} scenes)", jobId, request.spec().scenes().size());
+            log.info("Render job {} queued for the worker: dispatch {}, attempt {}, {} scenes", jobId,
+                    request.dispatchId(), request.attempt(), request.spec().scenes().size());
         }
     }
 
@@ -158,54 +185,116 @@ public class RenderJobService {
             log.warn("Ignoring render result without jobId/type: {}", result);
             return;
         }
-        Job found = jobs.findById(result.jobId()).orElse(null);
-        if (found == null) {
+        UUID projectId = jobs.findProjectIdById(result.jobId()).orElse(null);
+        if (projectId == null) {
             log.warn("Render result for unknown job {}", result.jobId());
             return;
         }
-        UUID projectId = found.getProjectId();
         switch (result.type()) {
-            case RenderMessages.Result.PROGRESS -> events.renderProgress(projectId, result.percent() == null ? 0 : result.percent());
+            case RenderMessages.Result.CLAIMED, RenderMessages.Result.PROGRESS -> {
+                if (Boolean.TRUE.equals(tx.execute(status -> holdLease(result)))
+                        && RenderMessages.Result.PROGRESS.equals(result.type())) {
+                    events.renderProgress(projectId, result.percent() == null ? 0 : result.percent());
+                }
+            }
             case RenderMessages.Result.SUCCEEDED -> {
-                tx.executeWithoutResult(status -> succeed(result));
-                events.renderFinished(projectId);
+                if (Boolean.TRUE.equals(tx.execute(status -> succeed(result)))) {
+                    events.renderFinished(projectId);
+                }
             }
             case RenderMessages.Result.FAILED -> {
-                tx.executeWithoutResult(status -> fail(result));
-                events.renderFinished(projectId);
+                if (Boolean.TRUE.equals(tx.execute(status -> fail(result)))) {
+                    events.renderFinished(projectId);
+                }
             }
             default -> log.warn("Unknown render result type {}", result.type());
         }
     }
 
-    private void succeed(RenderMessages.Result r) {
+    /** The project row is locked, then the job is read fresh and fenced. Null = ignore the message. */
+    private Fenced fenced(RenderMessages.Result r) {
+        UUID projectId = jobs.findProjectIdById(r.jobId()).orElseThrow();
+        Project project = projects.lockById(projectId).orElseThrow();
         Job job = jobs.findById(r.jobId()).orElseThrow();
-        Project project = projects.lockById(job.getProjectId()).orElseThrow();
+        String worker = workerOf(r);
+        Job.Fence fence = job.fence(r.dispatchId(), worker, clock.instant());
+        if (fence != Job.Fence.ACCEPTED) {
+            String detail = fence == Job.Fence.LEASE_HELD ? " (lease held by " + job.getLeaseOwner() + ")" : "";
+            if (RenderMessages.Result.PROGRESS.equals(r.type())) {
+                log.debug("Render {} of job {} ignored: {}{}", r.type(), job.getId(), fence, detail);
+            } else {
+                log.info("Render {} of job {} ignored: {}{} - dispatch {}, worker {}, current dispatch {}",
+                        r.type(), job.getId(), fence, detail, r.dispatchId(), worker, job.getDispatchId());
+            }
+            return null;
+        }
+        return new Fenced(project, job, worker);
+    }
+
+    private record Fenced(Project project, Job job, String worker) {
+    }
+
+    /** CLAIMED or PROGRESS: the sender holds (or keeps) the lease. */
+    private boolean holdLease(RenderMessages.Result r) {
+        Fenced f = fenced(r);
+        if (f == null) {
+            return false;
+        }
+        boolean newOwner = !f.worker().equals(f.job().getLeaseOwner());
+        f.job().holdLease(f.worker(), clock.instant(), lease, renderTimeout(f.project()));
+        if (newOwner) {
+            log.info("Render job {} claimed by {} (dispatch {}, attempt {}), deadline {}", f.job().getId(),
+                    f.worker(), f.job().getDispatchId(), f.job().getAttempt(), f.job().getDeadlineAt());
+        }
+        return true;
+    }
+
+    /** max(10 min, 6 s per second of video) with the defaults: 10 min for 100 s. */
+    Duration renderTimeout(Project project) {
+        Duration scaled = renderTimeoutPerSecond.multipliedBy(Math.max(project.getDurationSeconds(), 1));
+        return scaled.compareTo(renderTimeoutMin) > 0 ? scaled : renderTimeoutMin;
+    }
+
+    private boolean succeed(RenderMessages.Result r) {
+        Fenced f = fenced(r);
+        if (f == null) {
+            return false;
+        }
+        Project project = f.project();
+        Job job = f.job();
         JobStep step = stepOf(job.getId());
         if (step.getStatus() != StepStatus.RUNNING) {
             log.info("Render job {} already finished ({}); duplicate result ignored", job.getId(), step.getStatus());
-            return;
+            return false;
         }
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("contentType", VIDEO_TYPE);
         meta.put("durationSeconds", r.durationSeconds());
         meta.put("bytes", r.bytes());
         meta.put("renderSeconds", r.renderSeconds());
-        step.succeed("projects/" + project.getId() + "/" + job.getId() + "/video.mp4",
+        meta.put("worker", f.worker());
+        meta.put("attempt", job.getAttempt());
+        step.succeed(outputKey(project.getId(), job.getId(), job.getDispatchId()),
                 json.writeValueAsString(meta), BigDecimal.ZERO);
         job.moveTo(JobStatus.SUCCEEDED);
         if (project.getStatus() == ProjectStatus.RENDERING) {
             project.moveTo(ProjectStatus.DONE);
         }
-        log.info("Render job {} done: {} s video, rendered in {} s", job.getId(), r.durationSeconds(), r.renderSeconds());
+        log.info("Render job {} done by {}: {} s video, rendered in {} s", job.getId(), f.worker(),
+                r.durationSeconds(), r.renderSeconds());
+        return true;
     }
 
-    private void fail(RenderMessages.Result r) {
-        Job job = jobs.findById(r.jobId()).orElseThrow();
-        Project project = projects.lockById(job.getProjectId()).orElseThrow();
+    private boolean fail(RenderMessages.Result r) {
+        Fenced f = fenced(r);
+        if (f == null) {
+            return false;
+        }
+        Project project = f.project();
+        Job job = f.job();
         JobStep step = stepOf(job.getId());
         if (step.getStatus() != StepStatus.RUNNING) {
-            return;
+            return false;
         }
         String message = r.error() == null ? "The render worker failed" : r.error();
         step.fail("RENDER_FAILED", message, BigDecimal.ZERO);
@@ -214,7 +303,18 @@ public class RenderJobService {
             project.fail("RENDER_FAILED", message);
             credits.refundVideo(project.getUserId(), project.getId(), "Video failed: RENDER_FAILED");
         }
-        log.warn("Render job {} failed: {}", job.getId(), message);
+        log.warn("Render job {} failed on {}: {}", job.getId(), f.worker(), message);
+        return true;
+    }
+
+    static String outputKey(UUID projectId, UUID jobId, UUID dispatchId) {
+        return "projects/" + projectId + "/" + jobId + "/" + dispatchId + "/video.mp4";
+    }
+
+    /** Lease owner name: the worker's id, or "unknown" for a worker that does not send one. */
+    private static String workerOf(RenderMessages.Result r) {
+        String id = r.workerId() == null || r.workerId().isBlank() ? "unknown" : r.workerId().trim();
+        return id.length() > Job.LEASE_OWNER_LENGTH ? id.substring(0, Job.LEASE_OWNER_LENGTH) : id;
     }
 
     /** Where the finished MP4 of a DONE project is, or null. */

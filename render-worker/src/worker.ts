@@ -11,15 +11,19 @@
  *   REMOTION_BROWSER_EXECUTABLE         optional: use an installed Chrome
  *   RENDER_CONCURRENCY                  optional: browser tabs per render (default: CPU cores, max 8)
  *   RENDER_GL                           optional: angle = use the graphics card (often faster on Windows)
+ *   WORKER_ID                           optional: name in the backend's lease (default: host name + pid)
  *
  * One video at a time (prefetch 1). A request is acknowledged only after the result is sent,
  * so if the worker is stopped mid-render, RabbitMQ gives the request to the next worker start.
+ * Every result carries the request's dispatchId and this worker's id; the backend accepts results
+ * only from the current dispatch and the lease owner (V2 A3, see lease.ts).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import amqp from 'amqplib';
 import { Request, Result, handle } from './job';
 import { Renderer } from './render';
+import { reporterFor, workerId } from './lease';
 
 /**
  * Reads infra/.env (the same file docker compose and the backend use), so the worker gets the
@@ -84,6 +88,8 @@ async function main() {
   await channel.assertQueue(REQUESTS, { durable: true });
   await channel.assertQueue(RESULTS, { durable: true });
   await channel.prefetch(1);
+  const worker = workerId();
+  log(`worker id: ${worker}`);
 
   const report = (r: Result) => {
     channel.sendToQueue(RESULTS, Buffer.from(JSON.stringify(r)), {
@@ -97,12 +103,12 @@ async function main() {
     let req: Request | null = null;
     try {
       req = JSON.parse(msg.content.toString('utf8')) as Request;
-      await handle(req, report, renderer);
+      await handle(req, report, renderer, worker);
     } catch (e) {
       const error = e instanceof Error ? e.message : String(e);
       log(`job ${req?.jobId ?? '?'} FAILED: ${error}`);
       if (req?.jobId) {
-        report({ jobId: req.jobId, type: 'FAILED', error: error.slice(0, 450) });
+        reporterFor(req, worker, report)({ type: 'FAILED', error: error.slice(0, 450) });
       }
     } finally {
       channel.ack(msg);

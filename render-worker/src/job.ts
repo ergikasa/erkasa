@@ -6,10 +6,15 @@ import { Renderer } from './render';
 import { RenderSpec, fpsOf, totalFrames } from './spec';
 import { resolveMusic } from './music';
 import { withSoundEffects } from './sfx';
+import { reporterFor, startHeartbeat, workerId } from './lease';
 
 export type Request = {
   jobId: string;
   projectId: string;
+  /** this send of the job (V2 A3): copied into every result, or the backend ignores the result */
+  dispatchId?: string;
+  /** 1 for the first send, 2 for the next one ... */
+  attempt?: number;
   outputKey: string;
   outputUrl: string;
   spec: RenderSpec;
@@ -17,7 +22,10 @@ export type Request = {
 
 export type Result = {
   jobId: string;
-  type: 'PROGRESS' | 'SUCCEEDED' | 'FAILED';
+  /** CLAIMED = this worker starts and takes the lease; PROGRESS is also the 20 s heartbeat */
+  type: 'CLAIMED' | 'PROGRESS' | 'SUCCEEDED' | 'FAILED';
+  dispatchId?: string;
+  workerId?: string;
   percent?: number;
   durationSeconds?: number;
   bytes?: number;
@@ -61,12 +69,22 @@ async function upload(url: string, file: string): Promise<void> {
   }
 }
 
-export async function handle(req: Request, report: (r: Result) => void, renderer: Renderer): Promise<void> {
+export async function handle(
+  req: Request,
+  send: (r: Result) => void,
+  renderer: Renderer,
+  worker: string = workerId(),
+): Promise<void> {
   const started = Date.now();
+  const report = reporterFor(req, worker, send);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'erkasa-job-'));
+  let percent = 0;
+  report({ type: 'CLAIMED' });
+  // the heartbeat keeps the lease even while downloading or encoding (no progress for a while)
+  const stopHeartbeat = startHeartbeat(() => report({ type: 'PROGRESS', percent }));
   try {
-    log(`job ${req.jobId}: ${req.spec.scenes.length} scenes, ${req.spec.aspectRatio}`);
-    report({ jobId: req.jobId, type: 'PROGRESS', percent: 0 });
+    log(`job ${req.jobId}: ${req.spec.scenes.length} scenes, ${req.spec.aspectRatio}, dispatch ${req.dispatchId ?? '-'}, attempt ${req.attempt ?? 1}`);
+    report({ type: 'PROGRESS', percent: 0 });
     const music = resolveMusic(req.spec.music, req.jobId);
     if (req.spec.music) log(`job ${req.jobId}: music ${music ? path.basename(music) : 'none found for ' + req.spec.music}`);
     const downloaded = await downloadAssets({ ...req.spec, music }, dir);
@@ -79,9 +97,10 @@ export async function handle(req: Request, report: (r: Result) => void, renderer
       baseDir: dir,
       onProgress: (p) => {
         // every 10 % is enough for a progress bar, and keeps the queue quiet
+        percent = Math.min(99, p);
         if (p >= lastSent + 10 || p === 100) {
           lastSent = p;
-          report({ jobId: req.jobId, type: 'PROGRESS', percent: Math.min(99, p) });
+          report({ type: 'PROGRESS', percent });
         }
       },
     });
@@ -90,9 +109,10 @@ export async function handle(req: Request, report: (r: Result) => void, renderer
     const bytes = fs.statSync(out).size;
     const durationSeconds = +(totalFrames(local) / fpsOf(local)).toFixed(2);
     const renderSeconds = +((Date.now() - started) / 1000).toFixed(1);
-    report({ jobId: req.jobId, type: 'SUCCEEDED', percent: 100, durationSeconds, bytes, renderSeconds });
+    report({ type: 'SUCCEEDED', percent: 100, durationSeconds, bytes, renderSeconds });
     log(`job ${req.jobId}: done in ${renderSeconds} s (${(bytes / 1024 / 1024).toFixed(1)} MB)`);
   } finally {
+    stopHeartbeat();
     fs.rmSync(dir, { recursive: true, force: true });
   }
 }

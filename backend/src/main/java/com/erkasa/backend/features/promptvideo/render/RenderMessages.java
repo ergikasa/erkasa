@@ -15,8 +15,14 @@ public final class RenderMessages {
     private RenderMessages() {
     }
 
-    /** backend -> worker: render this video and upload it to outputUrl (HTTP PUT, Content-Type video/mp4). */
-    public record Request(UUID jobId, UUID projectId, String outputKey, String outputUrl, Spec spec) {
+    /**
+     * backend -> worker: render this video and upload it to outputUrl (HTTP PUT, Content-Type video/mp4).
+     *
+     * @param dispatchId this send of the job (V2 A3); every result must carry it back, or it is ignored
+     * @param attempt    1 for the first send, 2 for the next one ...
+     */
+    public record Request(UUID jobId, UUID projectId, UUID dispatchId, int attempt, String outputKey,
+                          String outputUrl, Spec spec) {
     }
 
     /** The render spec (see RenderSpec in spec.ts). image / audio are presigned http(s) links. */
@@ -32,16 +38,20 @@ public final class RenderMessages {
     /**
      * worker -> backend.
      *
-     * @param type            PROGRESS (percent only), SUCCEEDED or FAILED
+     * @param type            CLAIMED (the worker starts: takes the lease), PROGRESS (percent; also the
+     *                        heartbeat every 20 s that keeps the lease), SUCCEEDED or FAILED
+     * @param dispatchId      copied from the request (fencing, V2 A3)
+     * @param workerId        which worker process sends this (lease owner)
      * @param percent         0-100 while rendering
      * @param durationSeconds length of the finished MP4
      * @param bytes           size of the finished MP4
      * @param renderSeconds   how long the render took (to plan worker capacity)
      * @param error           why it failed, for FAILED
      */
-    public record Result(UUID jobId, String type, Integer percent, Double durationSeconds, Long bytes,
-                         Double renderSeconds, String error) {
+    public record Result(UUID jobId, String type, UUID dispatchId, String workerId, Integer percent,
+                         Double durationSeconds, Long bytes, Double renderSeconds, String error) {
 
+        public static final String CLAIMED = "CLAIMED";
         public static final String PROGRESS = "PROGRESS";
         public static final String SUCCEEDED = "SUCCEEDED";
         public static final String FAILED = "FAILED";

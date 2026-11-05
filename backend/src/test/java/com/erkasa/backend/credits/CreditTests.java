@@ -100,6 +100,10 @@ class CreditTests extends AbstractIntegrationTest {
         return id;
     }
 
+    /**
+     * Takes this project's render request; returns its jobId and dispatchId already joined as JSON
+     * ({@code J","dispatchId":"D}), to put after {"jobId":" in a worker result (V2 A3).
+     */
     private String takeRenderJob(String projectId) {
         long deadline = System.currentTimeMillis() + 15_000;
         while (System.currentTimeMillis() < deadline) {
@@ -109,7 +113,7 @@ class CreditTests extends AbstractIntegrationTest {
             }
             JsonNode req = json.readTree(new String(m.getBody(), StandardCharsets.UTF_8));
             if (projectId.equals(req.path("projectId").asString())) {
-                return req.path("jobId").asString();
+                return req.path("jobId").asString() + "\",\"dispatchId\":\"" + req.path("dispatchId").asString();
             }
         }
         throw new AssertionError("No render request for project " + projectId);
@@ -188,10 +192,10 @@ class CreditTests extends AbstractIntegrationTest {
         call("POST", "/api/projects/" + id + "/approve", null, a.token());
         waitFor(a.token(), id, "ASSETS_READY");
         call("POST", "/api/projects/" + id + "/render", null, a.token());
-        String jobId = takeRenderJob(id);
+        String stamp = takeRenderJob(id);
 
         rabbit.send("", RenderQueues.RESULTS, MessageBuilder
-                .withBody(("{\"jobId\":\"" + jobId + "\",\"type\":\"FAILED\",\"error\":\"Chrome crashed\"}").getBytes(StandardCharsets.UTF_8))
+                .withBody(("{\"jobId\":\"" + stamp + "\",\"type\":\"FAILED\",\"error\":\"Chrome crashed\"}").getBytes(StandardCharsets.UTF_8))
                 .setContentType("application/json").build());
         waitFor(a.token(), id, "FAILED");
         assertThat(credits(a.token()).path("balance").asInt()).isEqualTo(BONUS);
@@ -208,9 +212,9 @@ class CreditTests extends AbstractIntegrationTest {
         call("POST", "/api/projects/" + id + "/approve", null, a.token());
         waitFor(a.token(), id, "ASSETS_READY");
         call("POST", "/api/projects/" + id + "/render", null, a.token());
-        String jobId = takeRenderJob(id);
+        String stamp = takeRenderJob(id);
         rabbit.send("", RenderQueues.RESULTS, MessageBuilder
-                .withBody(("{\"jobId\":\"" + jobId + "\",\"type\":\"FAILED\",\"error\":\"x\"}").getBytes(StandardCharsets.UTF_8))
+                .withBody(("{\"jobId\":\"" + stamp + "\",\"type\":\"FAILED\",\"error\":\"x\"}").getBytes(StandardCharsets.UTF_8))
                 .setContentType("application/json").build());
         waitFor(a.token(), id, "FAILED");
         setCredits(a.email(), 5);
