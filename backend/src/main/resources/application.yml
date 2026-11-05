@@ -36,6 +36,14 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER}
     password: ${RABBITMQ_PASSWORD}
+    # Don't hang for a minute when RabbitMQ is down; the outbox relay simply tries again later.
+    connection-timeout: 5s
+    # The outbox relay (V2 task A1) marks a message sent only after RabbitMQ confirmed it and
+    # routed it to a queue. These three settings make RabbitMQ send that confirmation.
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
 
   mail:
     # Locally: Mailpit from docker compose (catches all mail, UI at http://localhost:8025).

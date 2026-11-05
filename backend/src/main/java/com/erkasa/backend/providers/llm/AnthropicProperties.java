@@ -31,6 +31,7 @@ public record AnthropicProperties(String apiKey,
         baseUrl = baseUrl == null || baseUrl.isBlank() ? "https://api.anthropic.com" : baseUrl;
         inputUsdPerMillion = inputUsdPerMillion == null ? new BigDecimal("2.00") : inputUsdPerMillion;
         outputUsdPerMillion = outputUsdPerMillion == null ? new BigDecimal("10.00") : outputUsdPerMillion;
-        timeout = timeout == null ? Duration.ofSeconds(120) : timeout;
+        // a long script (16,000-token budget) can take more than 2 minutes to write
+        timeout = timeout == null ? Duration.ofSeconds(240) : timeout;
     }
 }

@@ -398,6 +398,7 @@ export const sq: Messages = {
     INSUFFICIENT_CREDITS: 'Nuk ke kredite të mjaftueshme për këtë video.',
     PROJECT_NOT_FOUND: 'Kjo video nuk ekziston ose nuk është jotja.',
     TOO_MANY_RETRIES: 'Shumë tentativa për këtë projekt. Nis një video të re.',
+    TRUNCATED: 'Script-i doli shumë i gjatë. Provo përsëri, ose nis videon me një kohëzgjatje më të shkurtër.',
     PROVIDER_FAILED: 'Një shërbim AI nuk u përgjigj. Provo përsëri pas një minute.',
     page: 'Diçka shkoi keq në këtë faqe.',
     pageHint: 'Rifresko faqen. Puna jote është e ruajtur në server.',

@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.erkasa.backend.AbstractIntegrationTest;
 import com.erkasa.backend.features.promptvideo.project.PipelineRecovery;
+import com.erkasa.backend.features.promptvideo.render.RenderJobService;
 import com.erkasa.backend.jobs.Job;
 import com.erkasa.backend.jobs.JobKind;
 import com.erkasa.backend.jobs.JobRepository;
@@ -51,6 +52,9 @@ class PipelineRecoveryTests extends AbstractIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Autowired
+    private RenderJobService renders;
 
     private UUID newUser() {
         return UUID.fromString(jdbc.queryForObject(
@@ -145,5 +149,76 @@ class PipelineRecoveryTests extends AbstractIntegrationTest {
 
         assertThat(jobs.findById(job.getId()).orElseThrow().getStatus()).isEqualTo(JobStatus.SUCCEEDED);
         assertThat(projects.findById(p.getId()).orElseThrow().getStatus()).isEqualTo(ProjectStatus.SCRIPT_PENDING);
+    }
+
+    /** A project on its way to RENDERING (no real assets: these tests never build a spec). */
+    private Project renderingProject(String idea) {
+        Project p = Project.create(newUser(), idea, Language.EN, 30, AspectRatio.PORTRAIT, null);
+        p.moveTo(ProjectStatus.SCRIPT_REVIEW);
+        p.setScript("Recovered", SCRIPT);
+        p.moveTo(ProjectStatus.ASSETS_PENDING);
+        p.moveTo(ProjectStatus.ASSETS_READY);
+        p.moveTo(ProjectStatus.RENDERING);
+        return projects.save(p);
+    }
+
+    private int outboxRows(UUID jobId) {
+        return jdbc.queryForObject("select count(*) from outbox_messages where payload ->> 'jobId' = ?",
+                Integer.class, jobId.toString());
+    }
+
+    /** V2 A2: a RUNNING render may still be with the worker; recovery leaves it to the watchdog (A4). */
+    @Test
+    void aRunningRenderJobIsLeftAlone() {
+        Project p = renderingProject("render running at restart");
+        Job job = Job.queue(p.getId(), JobKind.RENDER);
+        job.moveTo(JobStatus.RUNNING);
+        job = jobs.save(job);
+        JobStep step = JobStep.forVideo(job.getId(), StepType.RENDER);
+        step.moveTo(StepStatus.RUNNING);
+        steps.save(step);
+
+        recovery.recover();
+
+        assertThat(jobs.findById(job.getId()).orElseThrow().getStatus()).isEqualTo(JobStatus.RUNNING);
+        assertThat(steps.findByJobIdAndTypeAndSceneIndex(job.getId(), StepType.RENDER, JobStep.WHOLE_VIDEO)
+                .orElseThrow().getStatus()).isEqualTo(StepStatus.RUNNING);
+        assertThat(outboxRows(job.getId())).isZero();
+        assertThat(projects.findById(p.getId()).orElseThrow().getStatus()).isEqualTo(ProjectStatus.RENDERING);
+    }
+
+    /** V2 A2: a queued render of a project that was cancelled meanwhile is closed, never rendered. */
+    @Test
+    void aQueuedRenderOfACancelledProjectIsClosedNotSent() {
+        Project p = renderingProject("cancelled before the render was sent");
+        p.moveTo(ProjectStatus.CANCELLED);
+        p = projects.save(p);
+        Job job = jobs.save(Job.queue(p.getId(), JobKind.RENDER));
+        steps.save(JobStep.forVideo(job.getId(), StepType.RENDER));
+
+        recovery.recover();
+
+        assertThat(jobs.findById(job.getId()).orElseThrow().getStatus()).isEqualTo(JobStatus.CANCELLED);
+        assertThat(steps.findByJobIdAndTypeAndSceneIndex(job.getId(), StepType.RENDER, JobStep.WHOLE_VIDEO)
+                .orElseThrow().getStatus()).isEqualTo(StepStatus.SKIPPED);
+        assertThat(outboxRows(job.getId())).isZero();
+        assertThat(projects.findById(p.getId()).orElseThrow().getStatus()).isEqualTo(ProjectStatus.CANCELLED);
+    }
+
+    /** V2 A2: send() of a job that is no longer QUEUED does nothing (two callers at once, say). */
+    @Test
+    void sendingAJobThatIsNotQueuedDoesNothing() {
+        Project p = renderingProject("already sent");
+        Job job = Job.queue(p.getId(), JobKind.RENDER);
+        job.moveTo(JobStatus.RUNNING);
+        job = jobs.save(job);
+        JobStep step = JobStep.forVideo(job.getId(), StepType.RENDER);
+        step.moveTo(StepStatus.RUNNING);
+        steps.save(step);
+
+        renders.send(job.getId());
+
+        assertThat(outboxRows(job.getId())).isZero();
+        assertThat(jobs.findById(job.getId()).orElseThrow().getStatus()).isEqualTo(JobStatus.RUNNING);
     }
 }

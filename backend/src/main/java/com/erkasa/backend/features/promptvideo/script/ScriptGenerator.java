@@ -27,7 +27,16 @@ public class ScriptGenerator {
 
     private static final Logger log = LoggerFactory.getLogger(ScriptGenerator.class);
     private static final int MAX_ATTEMPTS = 2;
-    private static final int MAX_TOKENS = 4000;
+
+    /**
+     * Answer budget in tokens. Structured outputs make every scene carry every visual field
+     * (about 20, most of them empty), so a 60-90 s script of 10-15 scenes is 4,000-7,000 tokens,
+     * more in Albanian. Only the tokens actually written are paid, so a high limit costs nothing.
+     */
+    static final int MAX_TOKENS = 16_000;
+    /** If an answer is still cut off, the retry gets this much (and is asked to write less). */
+    static final int MAX_TOKENS_RETRY = 32_000;
+    static final String TRUNCATED = "TRUNCATED";
 
     private final ProviderGateway gateway;
     private final ObjectMapper json;
@@ -39,14 +48,28 @@ public class ScriptGenerator {
 
     public VideoScript generate(ScriptRequest request, CallContext ctx) {
         List<String> problems = List.of();
+        int maxTokens = MAX_TOKENS;
 
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             LlmRequest llmRequest = new LlmRequest(
                     ScriptPrompts.system(request),
                     ScriptPrompts.user(request, problems),
-                    MAX_TOKENS,
+                    maxTokens,
                     ScriptSchema.schema(request.template()));
-            LlmResponse response = gateway.generateText(llmRequest, ctx);
+            LlmResponse response;
+            try {
+                response = gateway.generateText(llmRequest, ctx);
+            } catch (ProviderException e) {
+                // The answer did not fit: try once more with a bigger budget and ask for shorter texts.
+                if (!TRUNCATED.equals(e.getCode()) || maxTokens >= MAX_TOKENS_RETRY || attempt == MAX_ATTEMPTS) {
+                    throw e;
+                }
+                log.warn("Script attempt {}: answer cut off at {} tokens, retrying with {}", attempt, maxTokens, MAX_TOKENS_RETRY);
+                maxTokens = MAX_TOKENS_RETRY;
+                problems = List.of("Your previous answer was too long and was cut off. Keep every text short "
+                        + "and use the lower end of the allowed number of scenes.");
+                continue;
+            }
 
             VideoScript script;
             try {

@@ -396,6 +396,7 @@ export const en = {
     INSUFFICIENT_CREDITS: 'Not enough credits for this video.',
     PROJECT_NOT_FOUND: 'This video does not exist or is not yours.',
     TOO_MANY_RETRIES: 'Too many tries for this project. Start a new video.',
+    TRUNCATED: 'The script came out too long. Try again, or start the video with a shorter length.',
     PROVIDER_FAILED: 'An AI service did not answer. Try again in a minute.',
     page: 'Something went wrong on this page.',
     pageHint: 'Reload the page. Your work is saved on the server.',

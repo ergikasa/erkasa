@@ -1,17 +1,12 @@
 package com.erkasa.backend.features.promptvideo.render;
 
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.core.Message;
-import org.springframework.amqp.core.MessageBuilder;
-import org.springframework.amqp.core.MessageProperties;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -33,6 +28,7 @@ import com.erkasa.backend.jobs.ProjectRepository;
 import com.erkasa.backend.jobs.ProjectStatus;
 import com.erkasa.backend.jobs.StepStatus;
 import com.erkasa.backend.jobs.StepType;
+import com.erkasa.backend.outbox.Outbox;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -40,6 +36,7 @@ import tools.jackson.databind.ObjectMapper;
  * The RENDER stage (5.2b).
  *
  *   start()   ASSETS_READY -> RENDERING: a RENDER job with one RENDER step, sent to the worker
+ *             through the outbox (V2 task A1)
  *   onResult  PROGRESS: live % for the UI;  SUCCEEDED: step + job done, project DONE;
  *             FAILED: step + job + project FAILED (POST /retry sends it again)
  *
@@ -56,14 +53,14 @@ public class RenderJobService {
     private final JobStepRepository steps;
     private final RenderSpecBuilder specs;
     private final AssetStorage storage;
-    private final RabbitTemplate rabbit;
+    private final Outbox outbox;
     private final ProjectEvents events;
     private final CreditService credits;
     private final TransactionTemplate tx;
     private final ObjectMapper json;
 
     public RenderJobService(ProjectRepository projects, JobRepository jobs, JobStepRepository steps,
-                            RenderSpecBuilder specs, AssetStorage storage, RabbitTemplate rabbit,
+                            RenderSpecBuilder specs, AssetStorage storage, Outbox outbox,
                             ProjectEvents events, TransactionTemplate tx, ObjectMapper json,
                             CreditService credits) {
         this.credits = credits;
@@ -72,7 +69,7 @@ public class RenderJobService {
         this.steps = steps;
         this.specs = specs;
         this.storage = storage;
-        this.rabbit = rabbit;
+        this.outbox = outbox;
         this.events = events;
         this.tx = tx;
         this.json = json;
@@ -101,16 +98,33 @@ public class RenderJobService {
     }
 
     /**
-     * Sends a QUEUED render job to the worker and marks it RUNNING. Also used by "retry" after a
+     * Queues a QUEUED render job for the worker and marks it RUNNING. Also used by "retry" after a
      * failed render (the job and its step are moved back to QUEUED / PENDING first).
+     *
+     * The request goes into the outbox in the SAME transaction as the RUNNING change (V2 task A1),
+     * so it reaches RabbitMQ even if RabbitMQ is down right now: OutboxRelay keeps trying.
+     * Before, it was published after the commit, and a failed publish left the project RENDERING forever.
      */
     public void send(UUID jobId) {
         RenderMessages.Request request = tx.execute(status -> {
+            // Project lock first (same order as cancel / fail), then read the job: two callers at
+            // once (a retry and startup recovery, say) are serialized, and the second sees RUNNING.
+            UUID projectId = jobs.findById(jobId).orElseThrow().getProjectId();
+            Project project = projects.lockById(projectId).orElseThrow();
             Job job = jobs.findById(jobId).orElseThrow();
             if (job.getStatus() != JobStatus.QUEUED) {
                 return null;
             }
-            Project project = projects.findById(job.getProjectId()).orElseThrow();
+            if (project.getStatus() != ProjectStatus.RENDERING) {
+                // e.g. cancelled while the job waited: never render it, close it instead (V2 A2)
+                job.moveTo(JobStatus.CANCELLED);
+                JobStep step = stepOf(jobId);
+                if (step.getStatus().canMoveTo(StepStatus.SKIPPED)) {
+                    step.moveTo(StepStatus.SKIPPED);
+                }
+                log.info("Render job {} not sent: project {} is {}", jobId, projectId, project.getStatus());
+                return null;
+            }
             VideoScript script = json.readValue(project.getScript(), VideoScript.class);
             Job assets = jobs.findFirstByProjectIdAndKindOrderByCreatedAtDesc(project.getId(), JobKind.ASSETS).orElseThrow();
             RenderMessages.Spec spec = specs.build(project, script, steps.findByJobIdOrderByTypeAscSceneIndexAsc(assets.getId()));
@@ -120,17 +134,13 @@ public class RenderJobService {
 
             job.moveTo(JobStatus.RUNNING);
             stepOf(jobId).moveTo(StepStatus.RUNNING);
-            return new RenderMessages.Request(jobId, project.getId(), key, uploadUrl, spec);
+            RenderMessages.Request req = new RenderMessages.Request(jobId, project.getId(), key, uploadUrl, spec);
+            outbox.enqueue(RenderQueues.REQUESTS, req);
+            return req;
         });
-        if (request == null) {
-            return;
+        if (request != null) {
+            log.info("Render job {} queued for the worker ({} scenes)", jobId, request.spec().scenes().size());
         }
-        Message message = MessageBuilder.withBody(json.writeValueAsString(request).getBytes(StandardCharsets.UTF_8))
-                .setContentType(MessageProperties.CONTENT_TYPE_JSON)
-                .setContentEncoding("UTF-8")
-                .build();
-        rabbit.send("", RenderQueues.REQUESTS, message);
-        log.info("Render job {} sent to the worker ({} scenes)", jobId, request.spec().scenes().size());
     }
 
     /** A FAILED render goes back to the worker; the caller has already locked the project. */

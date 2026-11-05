@@ -15,9 +15,22 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.erkasa.backend.AbstractIntegrationTest;
+import com.erkasa.backend.features.promptvideo.project.PipelineRecovery;
 import com.erkasa.backend.features.promptvideo.render.RenderQueues;
+import com.erkasa.backend.jobs.Job;
+import com.erkasa.backend.jobs.JobKind;
+import com.erkasa.backend.jobs.JobRepository;
+import com.erkasa.backend.jobs.JobStatus;
+import com.erkasa.backend.jobs.JobStep;
+import com.erkasa.backend.jobs.JobStepRepository;
+import com.erkasa.backend.jobs.Project;
+import com.erkasa.backend.jobs.ProjectRepository;
+import com.erkasa.backend.jobs.ProjectStatus;
+import com.erkasa.backend.jobs.StepType;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -34,6 +47,24 @@ class RenderJobTests extends AbstractIntegrationTest {
 
     @Autowired
     private ObjectMapper json;
+
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    @Autowired
+    private PipelineRecovery recovery;
+
+    @Autowired
+    private ProjectRepository projects;
+
+    @Autowired
+    private JobRepository jobs;
+
+    @Autowired
+    private JobStepRepository steps;
+
+    @Autowired
+    private TransactionTemplate tx;
 
     // ---------- helpers ----------
 
@@ -141,6 +172,18 @@ class RenderJobTests extends AbstractIntegrationTest {
         assertThat(spec.path("scenes").get(1).path("sfx").size()).isZero();
         assertThat(req.path("outputKey").asString()).isEqualTo("projects/" + id + "/" + jobId + "/video.mp4");
 
+        // V2 A1: the request went through the outbox, and RabbitMQ confirmed it. The worker can see
+        // the message a moment before the relay commits sent_at, so wait briefly.
+        String sentInOutbox = """
+                select count(*) from outbox_messages
+                where queue = 'render.requests' and payload ->> 'jobId' = ? and sent_at is not null
+                """;
+        long outboxDeadline = System.currentTimeMillis() + 15_000;
+        while (jdbc.queryForObject(sentInOutbox, Integer.class, jobId) == 0 && System.currentTimeMillis() < outboxDeadline) {
+            Thread.sleep(100);
+        }
+        assertThat(jdbc.queryForObject(sentInOutbox, Integer.class, jobId)).isEqualTo(1);
+
         // the voice link really works without credentials
         HttpResponse<byte[]> voice = http.send(HttpRequest.newBuilder(URI.create(first.path("audio").asString())).GET().build(),
                 HttpResponse.BodyHandlers.ofByteArray());
@@ -224,5 +267,41 @@ class RenderJobTests extends AbstractIntegrationTest {
         String jobId = takeRequest(id).path("jobId").asString();
         reply("{\"jobId\":\"" + jobId + "\",\"type\":\"FAILED\",\"error\":\"x\"}");
         waitFor(token, id, "FAILED");
+    }
+
+    /**
+     * V2 A2: the backend stopped right after "Make video" committed (project RENDERING, job QUEUED)
+     * and before the job reached the outbox. On the next start, recovery sends it.
+     */
+    @Test
+    void aRenderJobLeftQueuedIsSentOnStartup() throws Exception {
+        String token = login();
+        String id = readyProject(token, "crash before the render was sent");
+        UUID projectId = UUID.fromString(id);
+
+        // the state start() leaves behind if the server dies before send()
+        UUID jobId = tx.execute(status -> {
+            Project p = projects.lockById(projectId).orElseThrow();
+            p.moveTo(ProjectStatus.RENDERING);
+            Job job = jobs.save(Job.queue(projectId, JobKind.RENDER));
+            steps.save(JobStep.forVideo(job.getId(), StepType.RENDER));
+            return job.getId();
+        });
+        assertThat(jdbc.queryForObject("select count(*) from outbox_messages where payload ->> 'jobId' = ?",
+                Integer.class, jobId.toString())).isZero();
+
+        assertThat(recovery.recover()).isGreaterThanOrEqualTo(1);
+
+        JsonNode req = takeRequest(id);
+        assertThat(req.path("jobId").asString()).isEqualTo(jobId.toString());
+        assertThat(jobs.findById(jobId).orElseThrow().getStatus()).isEqualTo(JobStatus.RUNNING);
+
+        // a second recovery (another restart) does not send it again: the job is RUNNING now
+        recovery.recover();
+        assertThat(jdbc.queryForObject("select count(*) from outbox_messages where payload ->> 'jobId' = ?",
+                Integer.class, jobId.toString())).isEqualTo(1);
+
+        reply("{\"jobId\":\"" + jobId + "\",\"type\":\"SUCCEEDED\",\"percent\":100,\"durationSeconds\":30.0,\"bytes\":10,\"renderSeconds\":60.0}");
+        waitFor(token, id, "DONE");
     }
 }

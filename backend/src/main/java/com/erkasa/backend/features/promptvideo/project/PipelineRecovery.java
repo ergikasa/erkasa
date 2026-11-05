@@ -10,6 +10,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.erkasa.backend.features.promptvideo.render.RenderJobService;
 import com.erkasa.backend.jobs.Job;
 import com.erkasa.backend.jobs.JobKind;
 import com.erkasa.backend.jobs.JobRepository;
@@ -22,6 +23,12 @@ import com.erkasa.backend.jobs.StepStatus;
  * On startup: picks up jobs that were QUEUED or RUNNING when the server stopped (deploy, crash,
  * laptop closed). Steps caught RUNNING go back to PENDING and the job is started again;
  * SUCCEEDED steps are kept, so nothing that was finished is paid for twice.
+ *
+ * RENDER jobs (V2 task A2):
+ *   QUEUED   the backend stopped between "Make video" and handing the job to the outbox:
+ *            it is sent now (RenderJobService.send, through the outbox).
+ *   RUNNING  left alone: the request is already in the outbox or with the worker, and the worker
+ *            may still be rendering it. A render that never finishes is the watchdog's job (A4).
  *
  * v1 runs ONE backend instance. With several instances (phase 9) this must move to a queue
  * (RabbitMQ) or a lease, or two servers would pick up the same job.
@@ -38,16 +45,18 @@ public class PipelineRecovery implements ApplicationRunner {
     private final JobStepRepository steps;
     private final ScriptJobRunner scriptRunner;
     private final AssetsJobRunner assetsRunner;
+    private final RenderJobService renders;
     private final TransactionTemplate tx;
     private final boolean enabled;
 
     public PipelineRecovery(JobRepository jobs, JobStepRepository steps, ScriptJobRunner scriptRunner,
-                            AssetsJobRunner assetsRunner, TransactionTemplate tx,
+                            AssetsJobRunner assetsRunner, RenderJobService renders, TransactionTemplate tx,
                             @Value("${erkasa.pipeline.recover-on-startup:true}") boolean enabled) {
         this.jobs = jobs;
         this.steps = steps;
         this.scriptRunner = scriptRunner;
         this.assetsRunner = assetsRunner;
+        this.renders = renders;
         this.tx = tx;
         this.enabled = enabled;
     }
@@ -65,7 +74,17 @@ public class PipelineRecovery implements ApplicationRunner {
         int restarted = 0;
         for (Job found : stuck) {
             if (found.getKind() == JobKind.RENDER) {
-                continue; // phase 5
+                if (found.getStatus() == JobStatus.QUEUED) {
+                    log.info("Recovering RENDER job {} of project {}", found.getId(), found.getProjectId());
+                    try {
+                        renders.send(found.getId());
+                        restarted++;
+                    } catch (RuntimeException e) {
+                        // one broken job must not stop the recovery of the others
+                        log.error("Could not recover RENDER job {}", found.getId(), e);
+                    }
+                }
+                continue; // RUNNING: see the class comment
             }
             Boolean ok = tx.execute(status -> reset(found));
             if (Boolean.TRUE.equals(ok)) {

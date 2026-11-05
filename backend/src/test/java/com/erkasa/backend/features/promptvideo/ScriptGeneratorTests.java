@@ -114,4 +114,51 @@ class ScriptGeneratorTests {
                         e -> assertThat(e.getCode()).isEqualTo("INVALID_SCRIPT"));
         verify(gateway, times(2)).generateText(any(), any());
     }
+
+    // ---------- long scripts (TRUNCATED) ----------
+
+    private static ProviderException truncated() {
+        return new ProviderException("anthropic", "TRUNCATED", "Answer cut off at max_tokens", false, null);
+    }
+
+    @Test
+    void theBudgetFitsALongScript() {
+        when(gateway.generateText(any(), any())).thenReturn(llm(goodScript()));
+        ArgumentCaptor<LlmRequest> sent = ArgumentCaptor.forClass(LlmRequest.class);
+
+        generator.generate(REQUEST, CallContext.none());
+
+        verify(gateway).generateText(sent.capture(), any());
+        // a 90 s, 15-scene script with every visual field is about 7,000 tokens
+        assertThat(sent.getValue().maxTokens()).isGreaterThanOrEqualTo(16_000);
+    }
+
+    @Test
+    void aCutOffAnswerIsRetriedWithMoreRoomAndAskedToBeShorter() {
+        when(gateway.generateText(any(), any())).thenThrow(truncated()).thenReturn(llm(goodScript()));
+        ArgumentCaptor<LlmRequest> sent = ArgumentCaptor.forClass(LlmRequest.class);
+
+        VideoScript script = generator.generate(REQUEST, CallContext.none());
+
+        assertThat(script.scenes()).hasSize(4);
+        verify(gateway, times(2)).generateText(sent.capture(), any());
+        List<LlmRequest> requests = sent.getAllValues();
+        assertThat(requests.get(1).maxTokens()).isGreaterThan(requests.get(0).maxTokens());
+        assertThat(requests.get(1).userPrompt()).contains("too long and was cut off");
+    }
+
+    @Test
+    void aSecondCutOffIsReportedAndOtherErrorsAreNotRetried() {
+        when(gateway.generateText(any(), any())).thenThrow(truncated());
+        assertThatThrownBy(() -> generator.generate(REQUEST, CallContext.none()))
+                .isInstanceOfSatisfying(ProviderException.class, e -> assertThat(e.getCode()).isEqualTo("TRUNCATED"));
+        verify(gateway, times(2)).generateText(any(), any());
+
+        ProviderGateway other = mock(ProviderGateway.class);
+        when(other.generateText(any(), any())).thenThrow(new ProviderException("anthropic", "REFUSED", "no", false, null));
+        ScriptGenerator g = new ScriptGenerator(other, JsonMapper.builder().build());
+        assertThatThrownBy(() -> g.generate(REQUEST, CallContext.none()))
+                .isInstanceOfSatisfying(ProviderException.class, e -> assertThat(e.getCode()).isEqualTo("REFUSED"));
+        verify(other, times(1)).generateText(any(), any());
+    }
 }
