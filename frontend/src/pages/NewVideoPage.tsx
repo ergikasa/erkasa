@@ -34,7 +34,7 @@ import { useCredits } from '../hooks/useCredits';
  *           voice speed and captions.
  */
 
-const DURATIONS = [30, 60, 90] as const;
+const DURATIONS = [30, 60, 90, 100] as const;
 const MAX_IDEA = 1000;
 /** Shown in step 1 but not made yet (phase 9 adds them after the first two templates). */
 const COMING_SOON = ['STORYTELLING', 'FACTS'] as const;

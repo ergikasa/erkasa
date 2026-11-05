@@ -211,6 +211,17 @@ class ProjectApiTests extends AbstractIntegrationTest {
         assertThat(list.get(1).path("id").asString()).isEqualTo(first);
     }
 
+    /** V2 A5: a 100 s video is allowed, stored, and costs 100 credits. */
+    @Test
+    void aHundredSecondVideoIsAccepted() throws Exception {
+        String token = login();
+        JsonNode created = create(token, """
+                {"idea": "the longest video", "language": "EN", "durationSeconds": 100}
+                """);
+        assertThat(created.path("durationSeconds").asInt()).isEqualTo(100);
+        assertThat(created.path("estimatedCredits").asInt()).isEqualTo(100);
+    }
+
     @Test
     void badInputIsRejected() throws Exception {
         String token = login();
@@ -220,6 +231,13 @@ class ProjectApiTests extends AbstractIntegrationTest {
                 """, token);
         assertThat(tooLong.statusCode()).isEqualTo(400);
         assertThat(tooLong.body()).contains("VALIDATION_FAILED", "durationSeconds");
+
+        // V2 A5: 100 s is the limit, 101 s is one too many
+        HttpResponse<String> oneTooMany = call("POST", "/api/projects", """
+                {"idea": "x", "language": "EN", "durationSeconds": 101}
+                """, token);
+        assertThat(oneTooMany.statusCode()).isEqualTo(400);
+        assertThat(oneTooMany.body()).contains("durationSeconds", "At most 100 seconds");
 
         HttpResponse<String> noIdea = call("POST", "/api/projects", """
                 {"idea": " ", "language": "EN", "durationSeconds": 30}

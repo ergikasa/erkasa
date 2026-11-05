@@ -16,7 +16,7 @@ export type ProjectStatus =
   | 'CANCELLED';
 
 export const MIN_DURATION = 15;
-export const MAX_DURATION = 90;
+export const MAX_DURATION = 100;
 /** ScriptValidator.WORDS_PER_SECOND: how fast the voice speaks */
 export const WORDS_PER_SECOND = 2.5;
 

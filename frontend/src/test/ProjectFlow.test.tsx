@@ -124,6 +124,14 @@ describe('new video', () => {
     expect(screen.getByText('What do you want to create?')).toBeInTheDocument();
   });
 
+  it('offers 100 seconds as the longest length (V2 A5)', async () => {
+    renderAt('/new');
+    await userEvent.click(await screen.findByRole('button', { name: /Educational explainer/ }));
+    const longest = screen.getByRole('radio', { name: '100 s' });
+    await userEvent.click(longest);
+    expect(longest).toHaveAttribute('aria-checked', 'true');
+  });
+
   it('needs an idea', async () => {
     renderAt('/new');
     await userEvent.click(await screen.findByRole('button', { name: /Educational explainer/ }));

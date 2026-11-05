@@ -76,7 +76,7 @@ public class ProjectController {
             @NotBlank(message = "Write your video idea") @Size(max = 1000, message = "The idea is too long") String idea,
             @NotNull(message = "Choose a language") Language language,
             @Min(value = ScriptRequest.MIN_DURATION, message = "At least 15 seconds")
-            @Max(value = ScriptRequest.MAX_DURATION, message = "At most 90 seconds") int durationSeconds,
+            @Max(value = ScriptRequest.MAX_DURATION, message = "At most 100 seconds") int durationSeconds,
             AspectRatio aspectRatio,
             @Size(max = 100) String voiceId,
             @Valid OptionsRequest options) {
